@@ -1,0 +1,121 @@
+<?php
+
+namespace Tests;
+
+use App\Enums\Role;
+use App\Models\Branch;
+use App\Models\Center;
+use App\Models\User;
+use Illuminate\Foundation\Testing\TestCase as BaseTestCase;
+
+abstract class TestCase extends BaseTestCase
+{
+    /** Filial uchun guruh ochishga kerak bo'lgan ma'lumotnomalar. */
+    protected function catalog(Branch $branch): array
+    {
+        $teacher = $this->user(Role::Teacher, $branch, ['attendance.view', 'attendance.take']);
+
+        return [
+            'teacher' => $teacher,
+            'course' => \App\Models\Course::create(['branch_id' => $branch->id, 'name' => 'Koreys tili']),
+            'room' => \App\Models\Room::create(['branch_id' => $branch->id, 'name' => '1-xona']),
+            'time' => \App\Models\LessonTime::create(['branch_id' => $branch->id, 'starts_at' => '09:00', 'ends_at' => '10:30']),
+            'plan' => \App\Models\PricePlan::create(['branch_id' => $branch->id, 'name' => 'Standart', 'amount' => 500000, 'early_discount' => 50000]),
+        ];
+    }
+
+    protected function groupPayload(array $c, array $over = []): array
+    {
+        return [
+            'name' => 'a1 guruh', 'course_id' => $c['course']->id, 'teacher_id' => $c['teacher']->id, 'room_id' => $c['room']->id,
+            'lesson_time_id' => $c['time']->id, 'price_plan_id' => $c['plan']->id, 'schedule' => 'odd',
+            'starts_on' => '2026-09-21', 'lesson_count' => 4, ...$over,
+        ];
+    }
+
+    /** Filial kassasiga pul qo'yadi (sinov uchun). */
+    protected function fund(Branch $branch, \App\Enums\Wallet $wallet, int $amount): void
+    {
+        \App\Models\WalletAccount::updateOrCreate(['branch_id' => $branch->id, 'code' => $wallet->value], ['balance' => $amount]);
+    }
+
+    /** Har bir API so'rovi uchun yangi autentifikatsiya holati (testda guard keshi bo'lmasligi uchun). */
+    protected function api(string $token): static
+    {
+        $this->app['auth']->forgetGuards();
+
+        return $this->withToken($token);
+    }
+
+    protected function student(Branch $branch, array $attrs = []): User
+    {
+        return $this->user(Role::Student, $branch, [], $attrs);
+    }
+
+    /** Sinov markazi (har bir test uchun yangi; bir xil `center()` chaqiruvi bir xil markazni qaytaradi). */
+    protected ?Center $testCenter = null;
+
+    protected function center(string $name = 'Sinov markazi'): Center
+    {
+        return $this->testCenter ??= Center::create(['name' => $name, 'code' => Center::makeCode($name), 'status' => 'active']);
+    }
+
+    /** Alohida (ikkinchi) markaz - izolyatsiya testlari uchun. */
+    protected function newCenter(string $name): Center
+    {
+        return Center::create(['name' => $name, 'code' => Center::makeCode($name), 'status' => 'active']);
+    }
+
+    protected function branch(string $name = 'Filial', ?Center $center = null): Branch
+    {
+        return Branch::create([
+            'center_id' => ($center ?? $this->center())->id,
+            'name' => $name, 'code' => Branch::makeCode($name), 'status' => 'active', 'opened_at' => now(),
+        ]);
+    }
+
+    protected function user(Role $role, ?Branch $branch = null, array $permissions = [], array $attrs = []): User
+    {
+        static $i = 0;
+        $i++;
+
+        // sAdmin - platformaga tegishli; direktor - markazga (filialsiz); qolganlar - filialga
+        $branch = in_array($role, [Role::SAdmin, Role::Owner], true) ? null : ($branch ?? $this->branch("Filial {$i}"));
+
+        $user = User::create([
+            'role' => $role,
+            'center_id' => $role === Role::SAdmin ? null : ($branch?->center_id ?? $this->center()->id),
+            'branch_id' => $branch?->id,
+            'name' => "Foydalanuvchi {$i}",
+            'username' => "user{$i}",
+            'password' => 'parol12345',
+            ...$attrs,
+        ]);
+
+        $user->syncPermissions($permissions);
+
+        return $user;
+    }
+
+    /**
+     * Sinov uchun RSA kalit (PEM). Windows/XAMPP'da OpenSSL sozlama fayli topilmasa, odatiy joylar sinab ko'riladi.
+     */
+    protected function makeRsaPrivateKeyPem(): string
+    {
+        $base = ['private_key_bits' => 2048, 'private_key_type' => OPENSSL_KEYTYPE_RSA];
+        $configs = [null, getenv('OPENSSL_CONF') ?: null, dirname(PHP_BINARY).'/extras/ssl/openssl.cnf', 'C:/xampp/php/extras/ssl/openssl.cnf', 'C:/xampp/apache/conf/openssl.cnf'];
+
+        foreach ($configs as $cnf) {
+            if ($cnf !== null && ! is_file($cnf)) {
+                continue;
+            }
+            $opts = $cnf === null ? $base : $base + ['config' => $cnf];
+            $key = @openssl_pkey_new($opts);
+            if ($key !== false && @openssl_pkey_export($key, $pem, null, $cnf === null ? [] : ['config' => $cnf])) {
+                return $pem;
+            }
+        }
+
+        $this->markTestSkipped("OpenSSL kalit yarata olmadi (openssl.cnf topilmadi): OPENSSL_CONF o'zgaruvchisini sozlang.");
+    }
+}
