@@ -166,24 +166,4 @@ class AttendanceTest extends TestCase
         $this->actingAs($manager)->get('/attendance/stats')->assertForbidden();
     }
 
-    public function test_api_teacher_flow_and_student_view(): void
-    {
-        $token = $this->cat['teacher']->createToken('t')->plainTextToken;
-
-        $this->api($token)->getJson('/api/v1/groups')->assertOk()->assertJsonPath('data.0.name', 'A1 GURUH')->assertJsonPath('data.0.price', null);
-        $this->api($token)->getJson("/api/v1/groups/{$this->group->id}")->assertOk()->assertJsonPath('data.lesson_today', true)->assertJsonCount(2, 'data.students');
-        $this->api($token)->postJson("/api/v1/groups/{$this->group->id}/attendance", ['present' => [$this->s1->id]])->assertOk();
-        $this->api($token)->getJson("/api/v1/groups/{$this->group->id}/attendance")->assertOk()->assertJsonCount(2, 'data.students');
-
-        // O'quvchi faqat o'zini ko'radi va davomad ola olmaydi
-        $st = $this->s1->createToken('s')->plainTextToken;
-        $this->api($st)->getJson('/api/v1/groups')->assertOk()->assertJsonCount(1, 'data')->assertJsonPath('data.0.price', 500000);
-        $this->api($st)->getJson("/api/v1/groups/{$this->group->id}/attendance")->assertOk()->assertJsonCount(1, 'data.students');
-        $this->api($st)->postJson("/api/v1/groups/{$this->group->id}/attendance", ['present' => []])->assertForbidden();
-
-        // Boshqa o'qituvchi ko'ra olmaydi
-        $other = $this->user(Role::Teacher, $this->branch, ['attendance.view', 'attendance.take'])->createToken('o')->plainTextToken;
-        $this->api($other)->getJson("/api/v1/groups/{$this->group->id}")->assertNotFound();
-        $this->api($other)->postJson("/api/v1/groups/{$this->group->id}/attendance", ['present' => []])->assertForbidden();
-    }
 }

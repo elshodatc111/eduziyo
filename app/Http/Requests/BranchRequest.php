@@ -10,7 +10,7 @@ class BranchRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return $this->user()?->isSuperAdmin() ?? false;
+        return $this->user()?->isSuperAdmin() || ($this->user()?->role === \App\Enums\Role::Owner);
     }
 
     public function rules(): array

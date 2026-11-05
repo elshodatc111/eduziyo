@@ -10,6 +10,14 @@ use Illuminate\Foundation\Testing\TestCase as BaseTestCase;
 
 abstract class TestCase extends BaseTestCase
 {
+    protected function setUp(): void
+    {
+        parent::setUp();
+        \App\Support\Brand::flush();   // brend keshi testlar orasida aralashmasin
+        \App\Support\IntegrationSettings::flush();
+        \App\Services\Sms\Modem\ModemWorker::$pauser = fn (int $s) => null;   // modem pauzasi testni sekinlashtirmasin
+    }
+
     /** Filial uchun guruh ochishga kerak bo'lgan ma'lumotnomalar. */
     protected function catalog(Branch $branch): array
     {

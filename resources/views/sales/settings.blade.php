@@ -23,10 +23,12 @@
         <div class="card card-body grid gap-5 sm:grid-cols-2">
             <div class="sm:col-span-2">
                 <h2 class="font-bold text-ink-900 dark:text-white">Demo</h2>
-                <p class="hint">Login va parol ikkalasi ham kiritilsa, ular sotuv sahifasida hammaga ochiq ko'rsatiladi. Faqat demo hisob uchun ishlating (haqiqiy markaz hisobini emas). Bo'sh qoldirsangiz «Demo so'rash» tugmasi chiqadi.</p>
+                <p class="hint">Sotuv sahifasida har rol uchun «Direktor / Admin / ... sifatida kirish» tugmalari chiqadi (login-parol ko'rsatilmaydi). Demo ma'lumotlar har tun avtomatik tiklanadi. O'chirsangiz, tugmalar o'rniga «Demo so'rash» chiqadi.</p>
             </div>
-            <x-input name="demo_login" label="Demo login" :value="$c['demo_login']" />
-            <x-input name="demo_password" label="Demo parol" :value="$c['demo_password']" />
+            <label class="flex items-center gap-2.5 text-sm text-ink-700 dark:text-ink-200 sm:col-span-2">
+                <input type="checkbox" name="demo_enabled" value="1" class="rounded border-ink-300 text-brand-600" @checked(old('demo_enabled', $demoEnabled))>
+                Sotuv sahifasida demo'ga kirishni yoqish
+            </label>
             <div class="sm:col-span-2">
                 <label for="demo_text" class="label">Demo bo'limi matni</label>
                 <textarea id="demo_text" name="demo_text" rows="3" maxlength="1000" class="input">{{ old('demo_text', $c['demo_text']) }}</textarea>

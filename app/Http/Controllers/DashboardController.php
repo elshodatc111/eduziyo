@@ -19,6 +19,10 @@ class DashboardController extends Controller
     {
         $user = auth()->user();
 
+        if ($user->role->usesCabinet()) {
+            return redirect()->route('cabinet.home');
+        }
+
         $staffCounts = User::visibleToContext()
             ->whereIn('role', [Role::Admin, Role::Manager, Role::Teacher, Role::Operator])
             ->selectRaw('role, count(*) as total')

@@ -7,9 +7,6 @@
         <x-slot:actions>
             @can('students.update')
                 <a href="{{ route('students.edit', $student) }}" class="btn-secondary"><x-icon name="edit" class="h-4 w-4" /> Tahrirlash</a>
-                <form method="POST" action="{{ route('students.reset-password', $student) }}" onsubmit="return confirm('Yangi parol yaratilsinmi? Eski parol ishlamay qoladi.')">@csrf
-                    <button class="btn-secondary"><x-icon name="key" class="h-4 w-4" /> Parolni yangilash</button>
-                </form>
             @endcan
             @can('students.archive')
                 @if ($student->archived_at)
@@ -42,6 +39,8 @@
             <dl class="grid gap-x-6 gap-y-2 text-sm sm:grid-cols-2">
                 <div><dt class="text-ink-500">Telefon</dt><dd class="font-medium">{{ $student->phone }}</dd></div>
                 <div><dt class="text-ink-500">Qo'shimcha telefon</dt><dd class="font-medium">{{ $student->phone2 ?? '—' }}</dd></div>
+                @php $tgLinks = \App\Models\TelegramGuardian::withoutGlobalScopes()->where('student_id', $student->id)->get(); @endphp
+                <div><dt class="text-ink-500">Telegram bot</dt><dd class="font-medium">{{ $tgLinks->isEmpty() ? 'ulanmagan' : 'ota-ona: '.$tgLinks->where('kind', 'parent')->count().", o'quvchi: ".$tgLinks->where('kind', 'student')->count() }}</dd></div>
                 <div><dt class="text-ink-500">Tug'ilgan sana</dt><dd class="font-medium">{{ $student->birthday?->format('d.m.Y') ?? '—' }}</dd></div>
                 <div><dt class="text-ink-500">Manba</dt><dd class="font-medium">{{ $student->leadSource?->name ?? '—' }}</dd></div>
                 <div><dt class="text-ink-500">Ro'yxatga olgan</dt><dd class="font-medium">{{ $student->registeredByLabel() }}<div class="text-xs font-normal text-ink-400">{{ $student->created_at->format('d.m.Y H:i') }}</div></dd></div>

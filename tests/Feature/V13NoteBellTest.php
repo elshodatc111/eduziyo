@@ -80,7 +80,7 @@ class V13NoteBellTest extends TestCase
         $staff = $this->user(Role::Manager, $branch, ['students.view']);
 
         $this->actingAs($staff)->getJson('/notes/feed')->assertForbidden();
-        $this->actingAs($staff)->get('/')->assertOk()->assertDontSee('notesBell');
+        $this->actingAs($staff)->get('/dashboard')->assertOk()->assertDontSee('notesBell');
     }
 
     public function test_bell_is_rendered_with_permission(): void
@@ -88,7 +88,7 @@ class V13NoteBellTest extends TestCase
         $branch = $this->branch();
         $staff = $this->user(Role::Manager, $branch, ['students.notes']);
 
-        $this->actingAs($staff)->get('/')->assertOk()->assertSee('notesBell', false);
+        $this->actingAs($staff)->get('/dashboard')->assertOk()->assertSee('notesBell', false);
     }
 
     public function test_sadmin_sees_selected_branch_notes_only(): void

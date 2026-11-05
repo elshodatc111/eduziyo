@@ -18,7 +18,7 @@ class V8SecurityHardeningTest extends TestCase
     {
         $sadmin = $this->user(Role::SAdmin);
 
-        $response = $this->actingAs($sadmin)->get('/');
+        $response = $this->actingAs($sadmin)->get('/dashboard');
 
         $response->assertHeader('X-Content-Type-Options', 'nosniff');
         $response->assertHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
@@ -48,20 +48,6 @@ class V8SecurityHardeningTest extends TestCase
         $response->assertHeader('X-Content-Type-Options', 'nosniff');
     }
 
-    public function test_api_requests_are_throttled(): void
-    {
-        // Haqiqiy (120/daqiqa) chegara bilan sinov sekin bo'lardi - shu test uchun pastroq chegara qo'yamiz.
-        RateLimiter::for('api', fn () => Limit::perMinute(3));
-
-        $student = $this->student($this->branch('Namangan'));
-        $token = $student->createToken('test')->plainTextToken;
-
-        for ($i = 0; $i < 3; $i++) {
-            $this->api($token)->getJson('/api/v1/auth/me')->assertOk();
-        }
-
-        $this->api($token)->getJson('/api/v1/auth/me')->assertStatus(429);
-    }
 
     public function test_forwarded_ip_is_trusted_only_from_local_proxy(): void
     {

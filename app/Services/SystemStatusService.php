@@ -21,6 +21,7 @@ class SystemStatusService
             $this->cronCheck(),
             $this->queueWorkerCheck(),
             $this->backupCheck(),
+            $this->telegramBackupCheck(),
             $this->failedJobsCheck(),
             $this->migrationsCheck(),
             $this->walletIntegrityCheck(),
@@ -66,6 +67,26 @@ class SystemStatusService
         }
 
         return $this->row('queue', 'Navbat ishchisi (queue worker)', 'ok', "Ishlayapti (oxirgi signal {$minutesAgo} daqiqa oldin).");
+    }
+
+    /** Telegram orqali shifrlangan zaxira yuborilishi (`backup:telegram`): oxirgi natija. */
+    private function telegramBackupCheck(): array
+    {
+        $last = Cache::get('system.telegram_backup');
+
+        if (! $last) {
+            return $this->row('telegram_backup', 'Zaxira (Telegram)', 'warning', "Hali yuborilmagan. Bot sozlanib, sAdmin Telegramni ulagach `backup:telegram` har kuni yuboradi.");
+        }
+
+        $when = Carbon::createFromTimestamp($last['at'])->format('d.m.Y H:i');
+
+        if (empty($last['ok'])) {
+            return $this->row('telegram_backup', 'Zaxira (Telegram)', 'critical', "Oxirgi urinish ({$when}) xato bilan tugadi: ".($last['message'] ?? ''));
+        }
+
+        $days = Carbon::createFromTimestamp($last['at'])->diffInDays(now());
+
+        return $this->row('telegram_backup', 'Zaxira (Telegram)', $days > 2 ? 'warning' : 'ok', "Oxirgi muvaffaqiyatli yuborilgan: {$when}".($days > 2 ? " ({$days} kun oldin)" : '').'.');
     }
 
     private function backupCheck(): array

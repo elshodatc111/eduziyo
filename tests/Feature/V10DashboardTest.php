@@ -56,7 +56,7 @@ class V10DashboardTest extends TestCase
         $this->assertSame(['groups' => 1, 'students' => 2], $stats['active']);
         $this->assertSame(['groups' => 1, 'students' => 1], $stats['upcoming']);
 
-        $this->actingAs($admin)->get('/')->assertOk()
+        $this->actingAs($admin)->get('/dashboard')->assertOk()
             ->assertSee('Faol guruhlar')
             ->assertSee('Boshlanishi kutilayotgan guruhlar')
             ->assertSee("2 o'quvchi", false)
@@ -68,10 +68,10 @@ class V10DashboardTest extends TestCase
         $branch = $this->branch('Buxoro');
         $viewer = $this->user(Role::Admin, $branch, []); // 'groups.view' yo'q
 
-        $this->actingAs($viewer)->get('/')->assertOk()->assertDontSee('Boshlanishi kutilayotgan guruhlar');
+        $this->actingAs($viewer)->get('/dashboard')->assertOk()->assertDontSee('Boshlanishi kutilayotgan guruhlar');
 
         $sadmin = $this->user(Role::SAdmin);
-        $this->actingAs($sadmin)->get('/')->assertOk()->assertDontSee('Boshlanishi kutilayotgan guruhlar');
+        $this->actingAs($sadmin)->get('/dashboard')->assertOk()->assertDontSee('Boshlanishi kutilayotgan guruhlar');
     }
 
     public function test_debtors_and_stale_leads_panels_render_as_scrollable_containers(): void
@@ -83,7 +83,7 @@ class V10DashboardTest extends TestCase
         $lead = Lead::create(['branch_id' => $branch->id, 'name' => 'Eski lid', 'phone' => '+998 90 555 5555', 'status' => Lead::NEW]);
         $lead->forceFill(['created_at' => now()->subHours(40)])->save();
 
-        $html = $this->actingAs($admin)->get('/')->assertOk()
+        $html = $this->actingAs($admin)->get('/dashboard')->assertOk()
             ->assertSee('Bugungi qarzdorlar')
             ->assertSee('24 soatdan ortiq javobsiz lidlar')
             ->getContent();

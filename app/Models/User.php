@@ -25,7 +25,7 @@ class User extends Authenticatable
         'center_id', 'branch_id', 'role', 'name', 'username', 'email', 'phone', 'password',
         'birthday', 'address', 'status', 'last_login_at',
         'phone2', 'about', 'balance', 'lead_source_id', 'archived_at', 'photo_path',
-        'created_by', 'registered_via', 'hired_at',
+        'created_by', 'registered_via', 'hired_at', 'guardian_name', 'guardian_consent_at',
     ];
 
     protected $hidden = ['password', 'remember_token'];
@@ -44,6 +44,7 @@ class User extends Authenticatable
             'birthday' => 'date:Y-m-d',
             'hired_at' => 'date:Y-m-d',
             'last_login_at' => 'datetime',
+            'guardian_consent_at' => 'datetime',
             'archived_at' => 'datetime',
             'password_changed_at' => 'datetime',
             'balance' => 'integer',

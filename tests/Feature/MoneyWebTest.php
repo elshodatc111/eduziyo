@@ -148,21 +148,9 @@ class MoneyWebTest extends TestCase
         $this->actingAs($this->admin)->post('/settings/campaigns', ['name' => 'Bayram', 'amount' => 400000, 'bonus' => 50000, 'starts_on' => '2026-09-01', 'ends_on' => '2026-09-30'])->assertSessionHasNoErrors();
         $this->actingAs($this->admin)->post('/settings/campaigns', ['name' => 'Xato', 'amount' => 1, 'bonus' => 1, 'starts_on' => '2026-09-10', 'ends_on' => '2026-09-01'])->assertSessionHasErrors('ends_on');
         $this->actingAs($this->admin)->get('/settings/campaigns')->assertOk()->assertSee('Bayram');
-        $this->actingAs($this->admin)->get('/')->assertOk()->assertSee('Bugungi tushum');
+        $this->actingAs($this->admin)->get('/dashboard')->assertOk()->assertSee('Bugungi tushum');
     }
 
-    public function test_student_api_balance(): void
-    {
-        $student = $this->student($this->branch);
-        $this->actingAs($this->admin)->post("/students/{$student->id}/payments", ['cash' => 120000]);
-        $token = $student->createToken('t')->plainTextToken;
-
-        $this->api($token)->getJson('/api/v1/me/balance')->assertOk()
-            ->assertJsonPath('data.balance', 120000)->assertJsonPath('data.debt', 0)->assertJsonCount(1, 'data.transactions');
-
-        $staff = $this->manager->createToken('m')->plainTextToken;
-        $this->api($staff)->getJson('/api/v1/me/balance')->assertForbidden();
-    }
 
     /** Birinchi bosqich «Tekshiring» sahifasiga yo'naltirishi va tasdiqlagandan keyin bajarilishini tekshiradi. */
     private function confirm($response): void

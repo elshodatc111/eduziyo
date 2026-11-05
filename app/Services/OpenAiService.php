@@ -41,8 +41,18 @@ class OpenAiService
      */
     public function chat(array $messages, array $tools = [], bool $json = false): array
     {
+        if (app(DemoService::class)->isDemoUser(auth()->user())) {
+            throw ValidationException::withMessages(['message' => "Demo rejimda AI o'chirilgan."]);
+        }
+
         if (! $this->configured()) {
             throw ValidationException::withMessages(['message' => "OpenAI kaliti sozlanmagan. .env faylida OPENAI_API_KEY ni kiriting."]);
+        }
+
+        $aiUser = auth()->user();
+        if ($aiUser && ! $aiUser->isSuperAdmin() && $aiUser->center_id && ($aiCenter = \App\Models\Center::find($aiUser->center_id))
+            && ! app(UsageService::class)->consume($aiCenter, 'ai')) {
+            throw ValidationException::withMessages(['message' => "AI so'rovlar limiti tugagan yoki tarifingizda AI yo'q. Direktor «Markaz» bo'limidan tarifni ko'rsin."]);
         }
 
         $payload = ['model' => config('services.openai.model'), 'messages' => $messages, 'temperature' => 0.3];

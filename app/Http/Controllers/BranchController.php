@@ -35,6 +35,11 @@ class BranchController extends Controller
     {
         $data = $request->validated();
 
+        $centerId = \App\Support\CenterContext::id() ?: (int) $data['center_id'];
+        if (($center = \App\Models\Center::find($centerId)) && ! $center->is_demo) {
+            app(\App\Services\SubscriptionService::class)->assertCanAddBranch($center);
+        }
+
         $branch = Branch::create([
             ...$data,
             'center_id' => \App\Support\CenterContext::id() ?: (int) $data['center_id'],
@@ -92,6 +97,10 @@ class BranchController extends Controller
 
     public function reopen(Branch $branch): RedirectResponse
     {
+        if (($center = \App\Models\Center::find($branch->center_id)) && ! $center->is_demo) {
+            app(\App\Services\SubscriptionService::class)->assertCanAddBranch($center);
+        }
+
         $branch->update(['status' => BranchStatus::Active, 'closed_at' => null, 'closed_reason' => null]);
 
         AuditLog::record('branch.reopened', $branch, "Filial qayta ochildi: {$branch->name}");

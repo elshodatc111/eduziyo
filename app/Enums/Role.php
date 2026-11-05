@@ -31,6 +31,12 @@ enum Role: string
         return $this !== self::Student;
     }
 
+    /** O'quvchi kabineti (/cabinet) foydalanuvchisi. */
+    public function usesCabinet(): bool
+    {
+        return $this === self::Student;
+    }
+
     /** Ruxsatlari alohida belgilanadigan rollar. */
     public function hasConfigurablePermissions(): bool
     {

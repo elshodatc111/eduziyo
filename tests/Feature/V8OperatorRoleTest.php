@@ -151,6 +151,6 @@ class V8OperatorRoleTest extends TestCase
         $this->user(Role::Operator, $branch);
 
         $this->assertSame('badge-purple', Role::Operator->badgeClass());
-        $this->actingAs($admin)->get('/')->assertOk()->assertSee('Operatorlar');
+        $this->actingAs($admin)->get('/dashboard')->assertOk()->assertSee('Operatorlar');
     }
 }

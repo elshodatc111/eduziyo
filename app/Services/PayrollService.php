@@ -32,21 +32,49 @@ class PayrollService
      */
     public function teacherAccruals(User $teacher): array
     {
-        $groups = Group::where('teacher_id', $teacher->id)
+        return $this->teacherAccrualsMany(collect([$teacher]))[$teacher->id] ?? [];
+    }
+
+    /**
+     * Bir nechta o'qituvchi uchun hisob-kitob (ro'yxat sahifasi). Guruhlar, o'tilgan darslar, to'lovlar va faol o'quvchilar
+     * BITTA so'rovda yuklanadi (N+1 yo'q); hisob formulasi yagona — {@see teacherAccruals()} ham shu orqali ishlaydi.
+     *
+     * @param  \Illuminate\Support\Collection<int,User>  $teachers
+     * @return array<int, list<array>> o'qituvchi id => guruh qatorlari
+     */
+    public function teacherAccrualsMany(\Illuminate\Support\Collection $teachers): array
+    {
+        $teacherIds = $teachers->pluck('id')->all();
+        if ($teacherIds === []) {
+            return [];
+        }
+
+        $allGroups = Group::whereIn('teacher_id', $teacherIds)
             ->whereDate('ends_on', '>=', today()->subDays(self::RECENT_DAYS))
             ->orderByDesc('starts_on')
             ->get();
+        $byId = $teachers->keyBy('id');
+        $allGroups->each(fn (Group $g) => $g->setRelation('teacher', $byId[$g->teacher_id] ?? null));
 
-        $ids = $groups->pluck('id');
+        $ids = $allGroups->pluck('id');
         $held = AttendanceSession::whereIn('group_id', $ids)->selectRaw('group_id, count(*) as c')->groupBy('group_id')->pluck('c', 'group_id');
-        $paid = Payout::whereIn('group_id', $ids)->where('recipient_id', $teacher->id)->selectRaw('group_id, sum(amount) as s')->groupBy('group_id')->pluck('s', 'group_id');
+        $paid = Payout::whereIn('group_id', $ids)->whereIn('recipient_id', $teacherIds)->selectRaw('recipient_id, group_id, sum(amount) as s')->groupBy('recipient_id', 'group_id')->get()
+            ->mapWithKeys(fn ($r) => [$r->recipient_id.':'.$r->group_id => (int) $r->s]);
+        $active = GroupStudent::whereIn('group_id', $ids)->where('is_active', true)->get(['group_id', 'student_id'])->groupBy('group_id')->map(fn ($c) => $c->pluck('student_id'));
 
-        $groups->load('teacher');
+        // Bonus: guruh o'quvchisi (faol) shu guruhdan KEYIN yoki bir vaqtda boshlangan boshqa guruhda ham faol bo'lsa — hammasi bir yo'la hisoblanadi
+        $allStudents = $active->flatten()->unique()->values()->all();
+        $enrolled = $allStudents === [] ? collect() : GroupStudent::whereIn('student_id', $allStudents)->where('is_active', true)->get(['group_id', 'student_id'])->groupBy('student_id');
+        $starts = $enrolled->isEmpty() ? collect() : Group::whereIn('id', $enrolled->flatten(1)->pluck('group_id')->unique())->get(['id', 'starts_on'])->keyBy('id');
 
-        return $groups->map(function (Group $group) use ($held, $paid) {
-            $studentIds = GroupStudent::where('group_id', $group->id)->where('is_active', true)->pluck('student_id');
+        $out = array_fill_keys($teacherIds, []);
+
+        foreach ($allGroups as $group) {
+            $studentIds = $active[$group->id] ?? collect();
             $students = $studentIds->count();
-            $bonus = $this->bonusCount($group, $studentIds->all());
+            $bonus = $studentIds->filter(fn ($sid) => collect($enrolled[$sid] ?? [])->contains(
+                fn ($e) => $e->group_id !== $group->id && isset($starts[$e->group_id]) && $starts[$e->group_id]->starts_on->gte($group->starts_on)
+            ))->count();
 
             $accrued = $students * $group->teacher_rate + $bonus * $group->teacher_bonus_rate;
 
@@ -57,9 +85,9 @@ class PayrollService
             $total = $accrued + $uStudents + $uBonus;
 
             $byAttendance = $group->lesson_count > 0 ? (int) round(($held[$group->id] ?? 0) * $total / $group->lesson_count) : 0;
-            $paidSum = (int) ($paid[$group->id] ?? 0);
+            $paidSum = (int) ($paid[$group->teacher_id.':'.$group->id] ?? 0);
 
-            return [
+            $out[$group->teacher_id][] = [
                 'group' => $group,
                 'students' => $students,
                 'bonus' => $bonus,
@@ -73,7 +101,9 @@ class PayrollService
                 'paid' => $paidSum,
                 'remaining' => $byAttendance - $paidSum,
             ];
-        })->all();
+        }
+
+        return $out;
     }
 
     public function payTeacher(User $teacher, ?Group $group, PayMethod $method, int $amount, ?string $description, User $actor): Payout
@@ -121,17 +151,4 @@ class PayrollService
     }
 
     /** Guruh o'quvchilaridan nechtasi keyinroq boshlangan boshqa guruhda ham faol. */
-    private function bonusCount(Group $group, array $studentIds): int
-    {
-        if ($studentIds === []) {
-            return 0;
-        }
-
-        return GroupStudent::whereIn('student_id', $studentIds)
-            ->where('is_active', true)
-            ->where('group_id', '!=', $group->id)
-            ->whereIn('group_id', Group::whereDate('starts_on', '>=', $group->starts_on)->select('id'))
-            ->distinct()
-            ->count('student_id');
-    }
 }

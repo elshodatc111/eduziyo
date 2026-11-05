@@ -78,6 +78,12 @@ class PaymentService
 
         $sms->notify('payment_received', $fresh, ['amount' => Format::money($total), 'balance' => Format::money($fresh->balance)]);
 
+        try {
+            app(\App\Services\Telegram\TelegramFamilyService::class)->notifyPayment($fresh, $total);   // ota-ona/o'quvchi botga ulangan bo'lsa
+        } catch (\Throwable $e) {
+            report($e);
+        }
+
         foreach ($created as $payment) {
             if (in_array($payment->type, [Payment::DISCOUNT, Payment::CAMPAIGN_BONUS], true)) {
                 $sms->notify('discount_given', $fresh, ['amount' => Format::money($payment->amount)]);

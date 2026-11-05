@@ -3,8 +3,8 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Shartnoma · Edunova</title>
-    <link rel="icon" href="{{ asset('favicon.svg') }}" type="image/svg+xml">
+    <title>Shartnoma · {{ \App\Support\Brand::name() }}</title>
+    @include('partials.favicon')
     <style>
         /* Rasmiy hujjat ko'rinishi: A4, serif shrift, ikki chetga tekislangan matn, 20 mm maydon */
         @page {

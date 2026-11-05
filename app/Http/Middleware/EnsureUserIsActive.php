@@ -8,7 +8,7 @@ use Illuminate\Support\Facades\Auth;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
- * Bloklangan foydalanuvchi, yopilgan filial xodimi va (veb uchun) o'quvchilarni chiqarib yuboradi.
+ * Bloklangan foydalanuvchi va yopilgan filial xodimini chiqarib yuboradi; o'quvchini faqat kabinetga cheklaydi.
  */
 class EnsureUserIsActive
 {
@@ -26,8 +26,12 @@ class EnsureUserIsActive
             $message = 'Akkauntingiz bloklangan. Administrator bilan bog\'laning.';
         } elseif ($problem = $user->accessProblem()) {
             $message = $problem;
-        } elseif (! $request->expectsJson() && ! $request->is('api/*') && ! $user->role->canUsePanel()) {
-            $message = "O'quvchilar faqat mobil ilovadan foydalanadi.";
+        }
+
+        // O'quvchi faqat o'z kabineti (/cabinet) va chiqish sahifasini ko'radi; xodim sahifalariga kira olmaydi.
+        if ($message === null && $user->role->usesCabinet() && ! $request->is('api/*') && ! $request->expectsJson()
+            && ! $request->routeIs('cabinet.*', 'logout', 'demo.leave', 'legal.*')) {
+            return redirect()->route('cabinet.home');
         }
 
         if ($message === null) {

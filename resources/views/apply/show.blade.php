@@ -28,6 +28,10 @@
             @endif
             {{-- Botlar uchun tuzoq: odam bu maydonni ko'rmaydi --}}
             <div class="hidden" aria-hidden="true"><input name="website" tabindex="-1" autocomplete="off"></div>
+            @if (app(\App\Services\LegalService::class)->consentRequired())
+                <label class="flex items-start gap-2 text-sm text-ink-600"><input type="checkbox" name="consent" value="1" class="checkbox mt-0.5" required @checked(old('consent'))> <span>Shaxsiy ma'lumotlarimni qayta ishlashga <a href="{{ route('legal.privacy') }}" target="_blank" class="font-semibold text-brand-600 underline">maxfiylik siyosatiga</a> muvofiq roziman.</span></label>
+                @error('consent')<p class="error-text">{{ $message }}</p>@enderror
+            @endif
             <button class="btn-primary w-full py-3">Yuborish</button>
         </form>
     @endif

@@ -166,6 +166,40 @@ class SmsService
     {
         $text = $sms->secret ?? $sms->message;
 
+        // Ommaviy demo markazda haqiqiy SMS HECH QACHON yuborilmaydi (yuborilgandek yoziladi)
+        if (\App\Models\Center::whereKey(\Illuminate\Support\Facades\DB::table('branches')->where('id', $sms->branch_id)->value('center_id'))->where('is_demo', true)->exists()) {
+            $sms->update(['status' => SmsMessage::SENT, 'sent_at' => now(), 'provider_response' => 'demo: haqiqiy yuborilmadi', 'secret' => null]);
+
+            return;
+        }
+
+        // Tarif bo'yicha oylik SMS limiti (tarifsiz eski markaz cheksiz). Limit tugasa yuborilmaydi, direktorga xabar boradi.
+        $centerId = \Illuminate\Support\Facades\DB::table('branches')->where('id', $sms->branch_id)->value('center_id');
+        if ($centerId && ($center = \App\Models\Center::find($centerId)) && ! app(UsageService::class)->consume($center, 'sms')) {
+            $sms->update(['status' => SmsMessage::FAILED, 'provider_response' => "Tarif SMS limiti tugagan yoki tarifda SMS yo'q", 'secret' => null]);
+            $this->notifyLimit($center);
+
+            return;
+        }
+
+        // Kanal: USB modem tirik bo'lsa shu, bo'lmasa Eskiz
+        $modem = app(\App\Services\Sms\ModemDriver::class);
+        ($modem->available() ? $modem : app(\App\Services\Sms\EskizDriver::class))->send($sms);
+    }
+
+    /** Direktorga "SMS limiti tugadi" xabari (sutkada bir marta). */
+    private function notifyLimit(\App\Models\Center $center): void
+    {
+        if (Cache::add("sms-limit-alert:{$center->id}:".today()->toDateString(), 1, now()->addDay())) {
+            app(CenterAlerts::class)->send($center, "SMS limiti tugadi: yangi xabarlar yuborilmayapti. Direktor «Markaz» bo'limidan SMS fakturasini qabul qilsin yoki tarifni yangilasin.");
+        }
+    }
+
+    /** Eskiz orqali yuborish (modem navbatidan fallback ham shu yo'l bilan ketadi). Limit bu yerda qayta hisoblanmaydi. */
+    public function deliverViaEskiz(SmsMessage $sms): void
+    {
+        $text = $sms->secret ?? $sms->message;
+
         try {
             [$email, $password, $from] = $this->credentials(Branch::findOrFail($sms->branch_id));
             $response = $this->send($email, $password, $from, $sms->phone, $text);

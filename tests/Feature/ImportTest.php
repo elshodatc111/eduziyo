@@ -106,7 +106,7 @@ class ImportTest extends TestCase
         unlink($tmp);
 
         $this->assertSame(['Toshkent', 'ALI', '998901234567'], array_slice($rows[2], 0, 3));
-        $this->postJson('/api/v1/auth/login', ['login' => '998901234567', 'password' => $rows[2][3]])->assertOk();
+        $this->post('/login', ['login' => '998901234567', 'password' => $rows[2][3]])->assertSessionHasNoErrors()->assertRedirect();
 
         // Ikkinchi marta yuklab bo'lmaydi
         $this->actingAs($sadmin)->withSession(['current_center_id' => $this->center()->id])->get("/imports/{$batch->id}/result")->assertNotFound();

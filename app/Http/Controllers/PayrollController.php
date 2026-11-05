@@ -38,10 +38,14 @@ class PayrollController extends Controller
             ->whereIn('role', $tab === 'teachers' ? [Role::Teacher] : [Role::Admin, Role::Manager, Role::Operator])
             ->where('status', 'active')->orderBy('name')->get();
 
+        $accruals = $tab === 'teachers' ? $this->payroll->teacherAccrualsMany($people) : [];
+        $paidMonth = $people->isEmpty() ? collect() : Payout::whereIn('recipient_id', $people->pluck('id'))
+            ->whereDate('created_at', '>=', today()->startOfMonth())->selectRaw('recipient_id, sum(amount) as s')->groupBy('recipient_id')->pluck('s', 'recipient_id');
+
         $rows = $people->map(fn (User $p) => [
             'user' => $p,
-            'remaining' => $tab === 'teachers' ? collect($this->payroll->teacherAccruals($p))->sum(fn ($r) => max(0, $r['remaining'])) : null,
-            'paid_month' => (int) Payout::where('recipient_id', $p->id)->whereDate('created_at', '>=', today()->startOfMonth())->sum('amount'),
+            'remaining' => $tab === 'teachers' ? collect($accruals[$p->id] ?? [])->sum(fn ($r) => max(0, $r['remaining'])) : null,
+            'paid_month' => (int) ($paidMonth[$p->id] ?? 0),
         ]);
 
         return view('payroll.index', ['rows' => $rows, 'tab' => $tab, 'canTeachers' => $canTeachers, 'canStaff' => $canStaff]);

@@ -74,22 +74,4 @@ class V8DuplicateSubmissionTest extends TestCase
         $this->assertSame(380000, app(WalletService::class)->balance($branch->id, Wallet::TillCash));
     }
 
-    public function test_api_idempotency_key_prevents_duplicate_mobile_payment(): void
-    {
-        $branch = $this->branch();
-        $admin = $this->user(Role::Admin, $branch, ['students.view', 'payments.create']);
-        $student = $this->student($branch);
-        $token = $admin->createToken('t')->plainTextToken;
-
-        $key = 'idem-'.uniqid();
-        $this->api($token)->withHeader('Idempotency-Key', $key)
-            ->postJson("/api/v1/students/{$student->id}/payments", ['cash' => 75000])
-            ->assertOk();
-        $this->api($token)->withHeader('Idempotency-Key', $key)
-            ->postJson("/api/v1/students/{$student->id}/payments", ['cash' => 75000])
-            ->assertStatus(409);
-
-        $this->assertSame(1, Payment::where('type', 'payment')->count());
-        $this->assertSame(75000, $student->fresh()->balance);
-    }
 }

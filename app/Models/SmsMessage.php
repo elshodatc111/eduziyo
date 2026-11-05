@@ -14,7 +14,7 @@ class SmsMessage extends Model
     public const SENT = 'sent';
     public const FAILED = 'failed';
 
-    protected $fillable = ['branch_id', 'recipient_id', 'phone', 'message', 'secret', 'template_key', 'status', 'provider_response', 'created_by', 'sent_at'];
+    protected $fillable = ['branch_id', 'recipient_id', 'phone', 'message', 'secret', 'template_key', 'status', 'provider_response', 'created_by', 'sent_at', 'channel'];
 
     protected function casts(): array
     {

@@ -1,0 +1,17 @@
+# /etc/systemd/system/eduziyo-modem.service
+# O'rnatish: sudo cp deploy/eduziyo-modem.service /etc/systemd/system/ && sudo systemctl daemon-reload && sudo systemctl enable --now eduziyo-modem
+[Unit]
+Description=EDUZIYO USB modem SMS ishchisi
+After=network.target mysql.service mariadb.service
+
+[Service]
+# Laravel loyiha papkasi va foydalanuvchini o'zingizniki bilan almashtiring (foydalanuvchi `dialout` guruhida bo'lishi shart)
+User=www-data
+Group=dialout
+WorkingDirectory=/var/www/eduziyo
+ExecStart=/usr/bin/php artisan sms:modem-run --sleep=3
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target

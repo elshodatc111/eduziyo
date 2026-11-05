@@ -26,6 +26,7 @@
                             <span class="{{ $a->status === 'new' ? 'badge-red' : ($a->status === 'won' ? 'badge-green' : 'badge-gray') }}">{{ $a->statusLabel() }}</span>
                             @if ($a->phone_verified_at)<span class="badge-green">Telefon tasdiqlangan</span>@else<span class="badge-gray">Telefon tasdiqlanmagan</span>@endif
                             @if ($a->wants_demo)<span class="badge-blue">Demo so'radi</span>@endif
+                            @if ($a->demoRoleLabels())<span class="badge-green" title="Demo'da ko'rgan rollar">Demo ko'rdi: {{ implode(', ', $a->demoRoleLabels()) }}</span>@endif
                             @if ($a->tariff_slug)<span class="badge-purple">Tarif: {{ $a->tariff_slug }}</span>@endif
                             @if ($a->isOverdue())<span class="badge-red">Muddati o'tgan</span>@endif
                         </div>

@@ -34,7 +34,7 @@ class StudentAndCatalogTest extends TestCase
         $this->assertSame($branch->id, $student->branch_id);
 
         $password = session('credentials')['password'];
-        $this->postJson('/api/v1/auth/login', ['login' => '998901234567', 'password' => $password])->assertOk();
+        $this->post('/login', ['login' => '998901234567', 'password' => $password])->assertSessionHasNoErrors()->assertRedirect();
 
         // Bir filialda bir xil asosiy telefon bilan ikkinchi o'quvchi bo'lmaydi
         $this->actingAs($manager)->post('/students', ['name' => 'Aka', 'phone' => '+998 90 123 4567'])->assertSessionHasErrors('phone');
@@ -76,7 +76,8 @@ class StudentAndCatalogTest extends TestCase
         $this->actingAs($admin)->put("/students/{$student->id}", ['name' => 'yangi ism', 'phone' => '+998 90 123 4567'])->assertRedirect();
         $this->assertSame('YANGI ISM', $student->fresh()->name);
 
-        $this->actingAs($admin)->post("/students/{$student->id}/reset-password")->assertSessionHas('credentials');
+        // Qo'lda parol tiklash olib tashlangan (faqat Telegram bot orqali)
+        $this->actingAs($admin)->post("/students/{$student->id}/reset-password")->assertNotFound();
     }
 
     public function test_settings_require_permission_and_sadmin_needs_branch(): void

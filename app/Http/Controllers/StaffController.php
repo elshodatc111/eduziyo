@@ -104,9 +104,8 @@ class StaffController extends Controller
         $extraSubmitted = array_key_exists('extra_branches_form', $data);
         unset($data['extra_branches'], $data['extra_branches_form']);
 
-        if (blank($data['password'] ?? null)) {
-            unset($data['password']);
-        }
+        // Parol qo'lda o'zgartirilmaydi: faqat Telegram bot orqali tiklanadi
+        unset($data['password'], $data['password_confirmation']);
 
         $newRole = ! empty($data['role']) ? Role::from($data['role']) : null;
         unset($data['role']);

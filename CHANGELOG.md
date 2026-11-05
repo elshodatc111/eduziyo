@@ -1,5 +1,145 @@
 # O'zgarishlar tarixi
 
+## EDUZIYO E3 (2026-11-17) — tezlik, izolyatsiya nazorati, Telegram ogohlantirish va oila boti, deploy
+
+- **N+1 va indekslar**: ish haqi sahifasi (`PayrollService::teacherAccrualsMany`) va platforma tahlili/markazlar (`SubscriptionService::limitsMany`) bitta guruhli so'rovlarga o'tkazildi. `QueryBudgetTest` asosiy ro'yxat sahifalarida so'rovlar soni qator soniga bog'liq emasligini tekshiradi. Migratsiya `2026_11_17_000001_eduziyo_center_indexes` markaz bo'yicha qo'shma indekslarni qo'shadi (additive).
+- **Markaz izolyatsiyasi nazorati**: yangi `tenancy:scan` (kod: xom SQL va `withoutGlobalScopes()` joylari `database/tenancy-baseline.json` dan oshmasin) — `deploy.sh` har chiqarishda ishlatadi; `tenancy:audit` kunlik va deploy'dan keyin. `TenantLeakCanaryTest` ikki markazli sinov.
+- **Haqiqiy xatolar topilib tuzatildi**: (1) `/staff-directory` boshqa markaz xodimlarini ko'rsatishi mumkin edi (markaz filtri qo'shildi, sAdmin akkauntlari yashirildi); (2) platforma tahlili va markazlar sahifasi xodimsiz markazda 500 berardi.
+- **Watchdog**: `system:watch` (+ `--loop`) cron, navbat va modem ishchisi, disk va zaxirani tekshiradi; to'xtaganda va tiklanganda **botga ulangan barcha sAdminlarga** Telegram xabari. To'lov cheki yuborilganda va murojaat ochilganda/javob berilganda ham sAdminga Telegram xabari (havola bilan). «Ogohlantirish chatlari» — Integratsiyalar sahifasida.
+- **Telegram: o'quvchi va ota-ona**: `/ulanish` (telefon bilan), `/jadval`, `/guruhlar`, `/qarz`, `/davomat`, `/bildirishnoma`, `/chiqish`; darsga kelmaganda davomat xabari, to'lov tasdig'i, kunlik qarz eslatmasi (`telegram:debts`, 09:20). Kabinetda bot kartasi, o'quvchi sahifasida ulanishlar soni. Migratsiya `2026_11_17_000002_eduziyo_telegram_guardians`.
+- **Deploy**: `deploy/` — Dockerfile (nginx + php-fpm), `docker-compose.yml` (alohida loyiha `eduziyo`, `127.0.0.1:7005`, resurs chegaralari), `deploy.sh` (git pull → build → tenancy:scan → migrate → audit, `--rollback`), `db-create.sh`, `env.production.example`; `APP_URL` https bo'lsa havolalar https majburlanadi. `docs/DEPLOY.md`: GitHub SSH, deploy kaliti, Cloudflare Tunnel (`educrm.elshod.date`), boshqa loyihalarga tegmaslik ro'yxati.
+- README to'liq qayta yozildi.
+- Yangilash: `php artisan migrate && php artisan optimize:clear`; fon jarayonlariga `system:watch --loop` qo'shing (Docker'da `watchdog` xizmati).
+
+## EDUZIYO E2 (2026-11-16) — video muqova, markazni o'chirish, filial limiti, Integratsiyalar sahifasi
+
+- **Video qo'llanma muqovasi**: sAdmin har videoga muqova rasm yuklaydi (PNG/JPG/WebP); ro'yxatda telefon ikonkasi o'rniga muqova va «play» belgisi chiqadi. Muqova bo'lmasa — YouTube kadri yoki standart belgi.
+- **Markazni o'chirish** (sAdmin → Markazlar → markaz → «Xavfli zona»): markaz nomini yozib tasdiqlanadi; barcha filiallar, foydalanuvchilar va ma'lumotlar o'chadi. Rozilik/shartnoma dalillari (`center_ref`) saqlanib qoladi.
+- **Arzonroq tarifga o'tish**: yangi tarifda filial limiti kam bo'lsa, faqat birinchi N ta filial ishlaydi, qolganlari **faqat ko'rish** rejimida (yozish 403/ogohlantirish). Tarif sotib olishda qaysi filiallar yopilishi ogohlantirib ko'rsatiladi va tasdiq (`ack_branches`) so'raladi. Holat saqlanmaydi, har safar hisoblanadi — tarif qayta ko'tarilsa, filiallar o'zi ochiladi.
+- **Integratsiyalar** (sAdmin → «Integratsiyalar (bot, modem)»): Telegram bot tokeni (Telegram'da tekshiriladi, shifrlab saqlanadi, to'liq ko'rsatilmaydi), bot nomi (avtomatik), webhook manzili va maxfiy kaliti, «Webhook o'rnatish / holatni tekshirish / olib tashlash»; USB modem portlari, tezlik (baud), xabarlar orasidagi tasodifiy pauza va **SIM kunlik chegarasi** (chegaraga yetsa SMS Eskiz orqali ketadi). Sahifadagi qiymat `.env` dan ustun; bo'sh qoldirilsa avvalgisi saqlanadi. `.env` dagilar zaxira sifatida ishlayveradi.
+- Migratsiyalar: `2026_11_16_000001_eduziyo_guide_cover`, `2026_11_16_000002_eduziyo_modem_daily` (additive). Yangilash: `php artisan migrate && php artisan optimize:clear`; modem ishchisi qayta ishga tushirilsin (`sudo systemctl restart eduziyo-modem`).
+- Testlar: 670 (SQLite va MariaDB strict) — `CenterDeleteAndBranchLimitTest`, `IntegrationSettingsTest`, `SupportAndGuidesTest`.
+
+## EDUZIYO E1c (2026-11-15) — murojaatga rasm (skrinshot), menyu ikonkalari
+
+- **Murojaatga rasm biriktirish**: direktor ham, sAdmin ham xabarga 3 tagacha rasm (PNG/JPG/WebP, har biri 5 MB gacha) biriktiradi — fayl tanlab yoki matn maydoniga **Ctrl+V** bilan qo'yib. Rasmlar yopiq diskda (`storage/app/private/support`) saqlanadi va faqat shu markaz direktori hamda sAdmin ochadi (boshqa markazga 404). Markaz o'chirilganda rasmlar ham o'chadi.
+- **Menyu ikonkalari**: «SMS jurnali (platforma)» va «Murojaatlar»da ikonka yo'q edi (`chat` ikonkasi mavjud emasdi). Yangi ikonkalar: murojaat, video, hujjat, USB modem, brending, rasm. Test har bir menyu ikonkasi mavjudligini tekshiradi.
+- Migratsiya `2026_11_15_000002_eduziyo_support_attachments` (additive). Yangilash: `php artisan migrate && php artisan optimize:clear`. Testlar: `SupportAndGuidesTest` (10), `SidebarIconsTest`.
+
+## EDUZIYO E1b (2026-11-15) — o'qituvchi sahifalari, Telegram zaxira holati
+
+- **O'qituvchi**: yon menyuda «Mening jadvalim» (kelgusi 14 kun, faqat o'z guruhlari) va «Mening ish haqim» (guruhlar bo'yicha hisoblangan/to'langan/qoldiq, so'nggi to'lovlar; faqat ko'rish). Boshqa o'qituvchi ma'lumoti ochilmaydi, boshqa rollar 403.
+- **Tizim holati** (sAdmin): yangi qator «Zaxira (Telegram)» — `backup:telegram` oxirgi natijasi (muvaffaqiyat/xato sababi, 2 kundan eski bo'lsa ogohlantirish).
+- Migratsiya yo'q. Testlar: `TeacherSelfTest` (2).
+- Eslatma: mobil API olib tashlangan, lekin `device_tokens`, `app_versions`, `personal_access_tokens` jadvallari va Sanctum izi ma'lumotni yo'qotmaslik uchun qoldirildi (ishlatilmaydi).
+
+## EDUZIYO E1 (2026-11-15) — murojaat tiketlari, video qo'llanma, huquqiy hujjatlar va majburiy rozilik
+
+- **Murojaat (tiket)**: direktor «Markaz → Murojaat»da sAdmin'ga yozadi (bir vaqtda bitta ochiq murojaat; markaz faqat o'qish rejimida ham yoza oladi). Holatlar: ochiq / mijoz javobi kutilmoqda / yopilgan. **SLA** ish vaqti (standart 09:00–18:00, Du–Sh, 4 soat; sAdmin sozlaydi) bo'yicha hisoblanadi, 4 soatda eslatma, mijoz 7 kun javob bermasa avtomatik yopiladi (`support:tick`, har soat). Yopilgach 1–5 baho.
+- **Video qo'llanma**: sAdmin YouTube havolasini kiritib, qaysi rollarga ko'rinishini belgilaydi (o'quvchi ko'rmaydi); foydalanuvchi faqat o'z roliga tegishlisini ko'radi («Video qo'llanma»).
+- **Huquqiy hujjatlar** (sAdmin → «Hujjatlar va rozilik»): oferta (direktorlar), maxfiylik siyosati va foydalanish shartlari (hamma). Versiyalanadi: e'lon qilingan versiya o'zgarmaydi, o'zgartirish — yangi versiya (qayta rozilik talab qilish belgisi bilan). Dastlabki 3 matn **qoralama** sifatida keladi — yurist ko'rib chiqib, «Qoralama» eslatmasini o'chirgandan keyingina e'lon qilinadi.
+- **Majburiy rozilik**: e'lon qilingandan keyin har bir foydalanuvchi (sAdmin va demo'dan tashqari) keyingi kirishda rozilik oynasini ko'radi; rozi bo'lmaguncha boshqa sahifa ochilmaydi (o'quvchi kabineti va PWA'da ham). «Rozi emasman» — chiqish va bosh sahifa. Rozilik sana, IP va brauzer bilan o'zgarmas jurnalga yoziladi va markaz o'chirilsa ham saqlanadi. Direktor ofertani qabul qilganda markaz nomidan `center_agreements` yozuvi (tashkilot, shaxs, versiya, vaqt) yaratiladi.
+- **Ommaviy sahifalar**: `/oferta`, `/maxfiylik`, `/shartlar` (sotuv sahifasi pastida va kirish sahifasida havola).
+- **Shakllarda rozilik**: sotuv arizasi va `/apply/{filial}` murojaat shaklida maxfiylik siyosatiga rozilik belgisi majburiy (siyosat e'lon qilingach); versiya va vaqt `consent_*` ustunlariga yoziladi.
+- **18 yoshgacha o'quvchi**: xodim o'quvchi qo'shganda ota-ona (vakil) F.I.O va roziligi majburiy (`guardian_name`, `guardian_consent_at`).
+- **sAdmin hisoboti**: kim qaysi hujjatning qaysi versiyasini qachon qabul qilgan, qabul qilmaganlar soni, markaz bo'yicha filtr, Excel.
+- Migratsiyalar (additive): `2026_11_14_000001_eduziyo_support_videos`, `2026_11_15_000001_eduziyo_legal`. Yangilash: `php artisan migrate && php artisan optimize:clear`; cron `schedule:run` ishlashi kerak. Testlar: `SupportAndGuidesTest` (8), `LegalConsentTest` (11); jami 649 (SQLite va MariaDB strict).
+
+## EDUZIYO E10 (2026-11-14) — chiqish tasdig'i, API olib tashlandi, direktor qo'shish, USB modemlar, brending
+
+- **Chiqish**: tugma bosilganda «Tizimdan chiqasizmi?» tasdiqlash oynasi; tasdiqlansa **bosh (sotuv) sahifasiga** o'tadi (login sahifasiga emas).
+- **Mobil API va API hujjati olib tashlandi**: `/api/v1/*`, `/docs`, Postman kolleksiyasi, «Ilova versiyasi» sozlamasi, SMS-gateway API. Faqat Telegram bot webhook'i (`POST /api/telegram/webhook`) qoldi. (Eski jadvallar — `device_tokens`, `app_versions`, `personal_access_tokens` — ma'lumotni yo'qotmaslik uchun bazada qoldi.)
+- **Markazga direktor qo'shish**: direktor «Markaz → Direktorlar»da, sAdmin markaz sahifasidagi «Direktorlar»da yangi direktor qo'shadi/bloklaydi (o'zini bloklab bo'lmaydi, kamida bitta faol direktor qoladi). Login/parol Telegram havolasi orqali beriladi. Admin, menejer, o'qituvchi uchun yopiq (403).
+- **USB modemlar (Lubuntu serverda)**: tizim `/dev/ttyUSB*`/`ttyACM*` portlarini AT buyruq bilan **o'zi topadi** (IMEI bo'yicha guruhlaydi), SIM/tarmoq/signal/operatorni o'qiydi, yangi modemni **avtomatik faollashtiradi**; bir nechta modem orasida SMS navbatma-navbat taqsimlanadi. `sms:modem-run` (systemd xizmat, `deploy/eduziyo-modem.service`) har 60 soniyada qayta qidiradi va navbatni yuboradi; xato/yo'qolgan modem bo'lsa avtomatik Eskiz. sAdmin → «USB modemlar»: holat, qayta qidirish, faollashtirish/o'chirish, nom, sinov SMS, diagnostika. PDU: lotin — GSM 7-bit, kirill/`ʻ` — UCS2, uzun xabar bo'laklarga. Qo'llanma: `docs/SMS_MODEM.md`. (E5'dagi gateway API o'rniga.)
+- **Brending**: sAdmin → «Brending»: loyiha nomi (EDUZIYO ni boshqa nomga almashtirish), logotip (PNG/JPG/WebP, SVG ruxsat etilmaydi), favicon — panel, kirish, sotuv sahifasi, kabinet, chek/shartnoma, PWA manifest (`/manifest.webmanifest` endi dinamik), Telegram matnlarida. Direktor «Markaz»da o'z markazi logotipini qo'yadi (yon panelda markaz nomi bilan ko'rinadi; markaz o'chirilganda fayl ham o'chadi).
+- Migratsiyalar (additive): `2026_11_13_000001_eduziyo_sms_modems`, `2026_11_13_000002_eduziyo_branding`. Yangilash: `php artisan migrate`, `optimize:clear`, modem uchun `docs/SMS_MODEM.md`. `.env` dagi `SMS_GATEWAY_TOKEN` endi kerak emas.
+
+## EDUZIYO E5 (2026-11-13) — SMS: USB modem + Eskiz zaxirasi, jurnal, SMS faktura
+
+- **USB modem (gammu) kanali**: SMS avval modem navbatiga (`sms_outbox`) tushadi; serverdagi skript `POST /api/sms-gateway/{heartbeat,claim,report}` orqali oladi/yuboradi (Bearer `SMS_GATEWAY_TOKEN`, token yo'q yoki noto'g'ri bo'lsa 403). Modem 3 daqiqa signal bermasa kanal o'chiq hisoblanadi va SMS to'g'ridan-to'g'ri Eskiz'ga ketadi. Qo'llanma: `docs/SMS_MODEM.md`.
+- **Avtomatik Eskiz zaxirasi** (`sms:dispatch`, har daqiqa): modem 2 daqiqada olmagan, 5 daqiqada natija bermagan yoki xato qaytargan SMS Eskiz orqali yuboriladi. Limit ikki marta hisoblanmaydi.
+- **SMS jurnali**: sAdmin — barcha markazlar (markaz/holat/kanal/telefon filtrlari, modem holati); direktor — «Markaz → SMS» (o'z markazi). Kanal (Modem/Eskiz) ko'rsatiladi.
+- **SMS matnini saqlash muddati** (sAdmin sozlaydi, standart 30 kun, 0 = cheksiz): `sms:prune-text` (har kuni 04:00) eski matnni tozalaydi, yozuv va holat qoladi.
+- **SMS faktura**: sAdmin markazga qo'shimcha SMS paketi (soni va summa qo'lda) taklif qiladi; bir vaqtda bitta faol faktura; 3 kunda qabul qilinmasa avtomatik bekor (`centers:lifecycle`). Direktor qabul qilsa summa balansdan atomik yechiladi (tur `sms_pack`), SMS soni joriy tarif davriga qo'shiladi va oylik limit tugagach ishlatiladi. Balans yetmasa hech narsa o'zgarmaydi.
+- Migratsiya `2026_11_12_000001_eduziyo_sms_platform` (additive). Yangilash: `php artisan migrate`, `.env` ga `SMS_GATEWAY_TOKEN` (ixtiyoriy), `optimize:clear`. Testlar: `SmsPlatformTest` (12).
+
+## EDUZIYO E8 (2026-11-12) — Telegram bot, parolni faqat bot orqali tiklash, shifrlangan zaxira
+
+**Yangi: Telegram bot** (webhook `POST /api/telegram/webhook`, maxfiy sarlavha `X-Telegram-Bot-Api-Secret-Token` bo'lmasa 403)
+- **Hisobni ulash**: Profil (va o'quvchi kabineti profili) → «Telegramni ulash» → botda «Start» (bir martalik havola, 15 daqiqa). Bir chat — bir hisob.
+- **Parolni faqat bot orqali tiklash**: saytda «Parolni unutdingizmi?» (`/forgot-password`) → login → bot **6 xonali kod** yuboradi (10 daqiqa, 5 urinish, soatiga 5 so'rov, kod bazada hash) → yangi parol (kamida 8 belgi, harf+raqam) → **barcha sessiya va API tokenlar yopiladi**, botga xabar boradi. Login mavjudligi oshkor qilinmaydi.
+- **Telegram ulanmagan/yo'qotgan**: botda `/parol` → o'z kontaktini ulashadi (faqat o'zining; Telegram tasdiqlagan raqam tizimdagi raqamga mos bo'lsa hisob ulanadi; bir raqamga bir nechta hisob bo'lsa login so'raladi). **sAdmin hisobi kontakt orqali ulanmaydi.**
+- **Qo'lda parol tiklash olib tashlandi**: o'quvchi sahifasidagi «Parolni yangilash» va xodim tahrirlashdagi parol maydoni (parol faqat yaratishda beriladi).
+- **Direktorning birinchi kirishi**: sAdmin markaz yaratganda parolni ko'rmaydi — direktorga bir martalik havola beradi, direktor botda «Start» bosib login va parolni o'zi oladi (bot sozlanmagan bo'lsa eski usul: login/parol ekranda).
+- **Sotuv arizasi tasdig'i**: ariza yuborilgach «Telegram'da tasdiqlash» tugmasi; botda telefon kontakti arizadagi raqamga mos bo'lsa `phone_verified_at` qo'yiladi va sAdmin'ga xabar boradi.
+- **Xabarlar**: sAdmin'ga yangi ariza, balans to'ldirish so'rovi, zaxira xatosi; direktorga tarif eslatmalari (`CenterAlerts` orqali).
+
+**Yangi: kunlik shifrlangan zaxira (`backup:telegram`, 03:20)**
+- Baza zaxirasi shifrlanib (AES-256-GCM, kalit RSA ochiq kalit bilan o'ralgan) Telegram bot orqali sAdmin'ga yuboriladi; 45 MB dan katta bo'lsa bo'laklanadi. **Serverda faqat ochiq kalit** turadi. Kalit yo'q bo'lsa hech narsa yuborilmaydi va ogohlantirish keladi. Yakshanba 04:00 — cheklar va yuklangan fayllar zaxirasi (`--files`).
+- `php artisan backup:keygen` (kalit juftligi), `bin/backup-decrypt.php` (ochish), `docs/BACKUP_RESTORE.md` (tiklash qo'llanmasi).
+
+**Texnik**: yangi jadvallar `telegram_links`, `telegram_reset_codes`; `sales_applications.telegram_token` (faqat qo'shimcha migratsiya `2026_11_11_000001_eduziyo_telegram`); `php artisan telegram:webhook`; `.env`: `TELEGRAM_BOT_TOKEN`, `TELEGRAM_BOT_USERNAME`, `TELEGRAM_WEBHOOK_SECRET`. 12 ta yangi test.
+
+**Yangilash**: `php artisan migrate`; `.env` ga Telegram kalitlarini yozing; `php artisan telegram:webhook`; zaxira kalitini `docs/BACKUP_RESTORE.md` bo'yicha sozlang; `php artisan optimize:clear`.
+
+## EDUZIYO E4 + E9 (2026-11-11) — Tarif, obuna, markaz balansi, limitlar, hayot sikli va tahlil
+
+**Yangi: markaz balansi va to'ldirish**
+- Har markazning **balansi** (faqat direktor va sAdmin ko'radi) va to'liq jurnal (`center_balance_transactions`: to'ldirish, tarif sotib olish, qoldiq qaytarish, sAdmin tuzatishi). Balans faqat `CenterBalanceService` orqali o'zgaradi (qulflangan tranzaksiya, manfiyga tushmaydi).
+- Direktor **Markaz → Balans** sahifasida platforma kartasini tanlab, summa, to'lov vaqti va **chek** (JPG/PNG/PDF, 5 MB gacha) bilan so'rov yuboradi. Chek SHA-256 bilan solishtiriladi — takroriy chek qabul qilinmaydi. sAdmin **Balans to'ldirish** sahifasida chekni ko'rib, summani tasdiqlaydi yoki sabab bilan rad etadi (qayta tasdiqlab bo'lmaydi). To'lov kartalari sAdmin tomonidan boshqariladi.
+
+**Yangi: tarif obunasi**
+- Direktor **Markaz → Tariflar** da oylik yoki yillik tarifni balansdan sotib oladi. Narx va limitlar sotib olingan paytda nusxalanadi (keyin tarif o'zgarsa, joriy obuna o'zgarmaydi).
+- Qimmatroq tarifga o'tish — darhol, eski tarif qoldig'i balansga qaytadi; arzonroq yoki bir xil tarif — joriy davr tugagach boshlanadi (navbatda ko'rinadi). sAdmin tarifni **to'lovsiz kun bo'yicha sovg'a** qila oladi.
+- Tarifsiz **eski faol markazlar cheksiz** ishlaydi (limit yo'q). **Yangi markaz «tarif kutilmoqda»** holatida ochiladi va tarif olinmaguncha faqat ko'rish rejimida.
+
+**Yangi: limitlar**
+- Filiallar soni va faol o'quvchilar soni tarif limiti bilan cheklanadi (o'quvchi qo'shish, import, murojaatdan o'tkazish — hammasi bir joydan tekshiriladi). Oylik **SMS** va **AI** so'rovlar sanaladi: tarifda 0 bo'lsa xizmat o'chiq, tugasa xabar chiqadi. Direktor Markaz sahifasida sarfni ko'radi.
+
+**Yangi: hayot sikli (`centers:lifecycle`, har soat)**
+- Tugashiga 7/3/1 kun qolganda direktorga eslatma (bir marta). Tarif tugasa markaz **faqat ko'rish rejimiga** o'tadi (yozish amallari to'xtaydi, tepada qizil lenta, GET va Excel eksport ishlaydi — eksport sAdmin sozlamasi `allow_export_in_read_only` bilan boshqariladi). 30 kun ichida yangilanmasa — o'chirishga 3 kun qolganda oxirgi ogohlantirish va muddat tugagach **markaz ma'lumoti butunlay o'chadi** (`CenterWiper`; markaz qatori «o'chirilgan» bo'lib qoladi). Tarif sotib olinsa/berilsa markaz darhol tiklanadi. Demo va tarifsiz eski markazlarga tegmaydi. `--dry-run` bor.
+- Direktor ma'lumotni **Excel**'ga yuklay oladi (o'quvchilar, to'lovlar, guruhlar).
+
+**Yangi: sAdmin «Markazlar» konsoli**
+- Markazlar ro'yxati (holat, tarif, tugash, o'quvchi, balans), **yangi markaz yaratish** (markaz + birinchi filial + direktor; login/parol bir marta ko'rsatiladi), markaz sahifasi: tarif sovg'a qilish, balans tuzatish (sabab majburiy), to'xtatish/tiklash, 6 oylik tahlil.
+- Direktor endi **o'z markazining filiallarini** ochadi/yopadi/o'chiradi (limit doirasida); eski «faqat sAdmin» qoidasi shu darajada yumshatildi.
+
+**Yangi: har markaz tahlili (E9)**
+- Direktor **Markaz → Tahlil**, sAdmin **Platforma tahlili** va markaz sahifasida: faol o'quvchilar, qarzdorlar, filiallar, davom etayotgan guruhlar, oylar bo'yicha yangi o'quvchi, ketgan o'quvchi, tushum, murojaat, balans to'ldirish, SMS va AI sarfi. Har diagrammada **Grafik/Jadval** almashtirgichi. Shaxsiy ma'lumot (ism, telefon) ishlatilmaydi.
+
+**Texnik**: yangi jadvallar `center_wallets`, `center_balance_transactions`, `payment_cards`, `topup_requests`, `center_subscriptions`, `usage_counters` (faqat qo'shimcha migratsiya `2026_11_10_000001_eduziyo_billing`); `EnsureCenterWritable` middleware (`writable`) web va API'da; yangi xizmatlar `CenterBalanceService`, `SubscriptionService`, `UsageService`, `CenterLifecycle`, `AnalyticsService`, `CenterAlerts` (Telegram bosqichida shu joydan yuboriladi). 18 ta yangi test.
+
+**Yangilash**: `php artisan migrate`, `php artisan optimize:clear`. Cron/`schedule:work` ishlab turishi kerak (`centers:lifecycle` har soat). Platforma sozlamasi: sAdmin to'lov kartasini «Balans to'ldirish» sahifasida kiritishi kerak.
+
+## EDUZIYO E6 + E7d (2026-11-10) — O'quvchi kabineti, PWA va ommaviy demo
+
+**Yangi: o'quvchi veb-kabineti** (`/cabinet`, faqat `student` roli)
+- O'quvchi endi veb'dan kiradi (login sahifasi umumiy). Bo'limlar: Bosh sahifa (balans/qarz, davomat %, bugungi darslar, guruhlar, so'nggi harakatlar), Guruhlar va guruh sahifasi (jadval, o'qituvchi, davomat tarixi), To'lovlar (balans harakatlari), Kurslar (video, audio, kitoblar, test), Xabarlar, Profil (telefon va parolni o'zgartirish). Pastki navigatsiyali, mobil-birinchi maket.
+- Qoidalar: o'quvchi faqat `/cabinet` ni ko'radi (xodim sahifalari uni kabinetga qaytaradi); xodim `/cabinet` ga kira olmaydi (403); boshqa filial/markaz guruhi va kursi 404; test javob kaliti topshirilguncha yuborilmaydi; sinfdosh va o'qituvchi telefoni ko'rsatilmaydi.
+- Eski xabar ("o'quvchilar faqat mobil ilovadan foydalanadi") olib tashlandi. Mobil API hozircha qoldi (keyinroq olib tashlanadi).
+
+**Yangi: PWA (o'rnatiladigan ilova)** — barcha rollar uchun: `manifest.webmanifest`, `sw.js` (faqat statik fayllar keshlanadi; pul va davomat sahifalari hech qachon keshlanmaydi), `offline.html`, ikonkalar (192/512/maskable/Apple), «O'rnatish» taklifi (Android/Chrome/Edge) va iOS yo'riqnomasi.
+
+**Yangi: ommaviy demo (har rol uchun bir bosishda kirish)**
+- Sotuv sahifasida 6 ta tugma: Direktor, Admin, Menejer, Operator, O'qituvchi, O'quvchi «sifatida kirish». Login/parol ko'rsatilmaydi (demo foydalanuvchilarning paroli har tozalashda tasodifiy).
+- Alohida **Demo markaz** (`is_demo`): 2 filial, o'quvchilar, guruhlar, to'lovlar, davomat, murojaatlar, kassa, test savollari. Haqiqiy markazlar bilan aralashmaydi.
+- **Har tun 03:10 da `demo:reset`** (`--dry-run` ham bor): faqat demo markaz ma'lumoti o'chib, qayta yaratiladi. sAdmin «Demo kirishlar» sahifasidan qo'lda ham tiklay oladi.
+- Himoya: sessiya 30 daqiqa; parol/profil, xodim yaratish/tahrirlash, import, ommaviy SMS, bildirishnoma, AI va filial amallari yopiq; demo markazda haqiqiy SMS yuborilmaydi; yuqorida «Demo rejim» lentasi («Ariza qoldirish», «Demo'dan chiqish»).
+- sAdmin → Sotuv → **Demo kirishlar**: rol bo'yicha va kunlar bo'yicha kirishlar. Arizada «Demo ko'rdi: …» (arizachi qaysi rollarni ko'rgani). Sotuv sozlamalarida demo yoqish/o'chirish kaliti; eski «demo login/parol» maydonlari olib tashlandi.
+- Yangi umumiy xizmat `CenterWiper` (markaz ma'lumotini xavfsiz o'chirish; keyingi bosqichda tarif tugagandan keyingi o'chirish ham shuni ishlatadi).
+- Yangi jadval `demo_visits`; `sales_applications.demo_roles`. Migratsiya faqat qo'shimcha.
+- 23 ta yangi test (jami 657; SQLite va MariaDB qat'iy rejimida o'tadi).
+
+**Yangilash**: `php artisan migrate`, so'ng `php artisan demo:reset` (birinchi marta demo markazni yaratadi), `php artisan optimize:clear`. Cron/`schedule:work` ishlab turishi kerak (demo har tun tiklanishi uchun).
+
+## EDUZIYO E7c (2026-11-09) — Sotuv sahifasi doim `/` da, yangi animatsion dizayn
+
+**O'zgardi**
+- **Sotuv sahifasi `/` manzilida doim ochiq** — kirgan foydalanuvchi uchun ham. Boshqaruv paneli endi **`/dashboard`** manzilida (`route('dashboard')`, nomi o'zgarmadi). Login'dan keyin avtomatik `/dashboard` ga o'tiladi. Sahifa tepasida kirganlarga «Panelga o'tish», mehmonlarga «Kirish» va «Ariza qoldirish» tugmalari ko'rinadi. Panel sarlavhasida «Sayt» havolasi (yangi oynada) qo'shildi.
+- **Sotuv sahifasi qayta ishlandi**: zamonaviy dizayn, har bir element animatsiyali (ekranga kelganda paydo bo'lish, suzuvchi kartalar, aylanuvchi sarlavha so'zi, yuqoridagi o'qish chizig'i, marquee, rollar tabi, tarifda oylik/yillik almashtirgich, FAQ akkordeon, tepaga qaytish tugmasi), 40 ga yaqin mos SVG ikonka (`<x-lp-icon>`), qorong'i footer, mobil menyu. Animatsiyalar `prefers-reduced-motion` ni hisobga oladi. Stil va skript: `public/css/landing.css`, `public/js/landing.js`.
+
+**Yangilash**: `php artisan optimize:clear` (migratsiya kerak emas). Eski xatcho'plar `/` ga kirsa sotuv sahifasi ochiladi; panelga `/dashboard` orqali kiring.
+
 ## EDUZIYO E7b (2026-11-08) — Tariflar, demo, rasmli yangiliklar va videolar
 
 **Yangi**

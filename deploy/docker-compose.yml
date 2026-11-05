@@ -1,0 +1,103 @@
+# EDUZIYO — Docker Compose. Boshqa loyihalarga (KinderDesk, clinik_crm, MyPartfolio, stack) tegmaydi:
+#  - alohida loyiha nomi (`eduziyo`), konteyner va tarmoq nomlari `eduziyo_` bilan boshlanadi;
+#  - tashqi port faqat WEB_BIND:WEB_PORT (standart 127.0.0.1:7005);
+#  - bazaga faqat mavjud MySQL/MariaDB tarmog'i orqali ulanadi (alohida baza va foydalanuvchi);
+#  - har xizmatga xotira chegarasi qo'yilgan — boshqa loyihalar xotirasini egallab olmaydi.
+# Ishga tushirish:  docker compose --env-file .env -f deploy/docker-compose.yml up -d   (yoki ./deploy/deploy.sh)
+name: eduziyo
+
+x-app: &app
+  image: eduziyo-app:latest
+  env_file: ../.env
+  restart: unless-stopped
+  networks: [internal, db]
+  volumes:
+    - storage:/var/www/html/storage
+    - uploads:/var/www/html/public/uploads
+  logging: &log
+    driver: json-file
+    options: { max-size: "10m", max-file: "3" }
+
+services:
+  app:
+    <<: *app
+    build: { context: .., dockerfile: deploy/Dockerfile, target: app }
+    container_name: eduziyo_app
+    mem_limit: 512m
+    cpus: 1.0
+
+  web:
+    image: eduziyo-web:latest
+    build: { context: .., dockerfile: deploy/Dockerfile, target: web }
+    container_name: eduziyo_web
+    restart: unless-stopped
+    depends_on: [app]
+    ports: ["${WEB_BIND:-127.0.0.1}:${WEB_PORT:-7005}:80"]
+    networks: [internal]
+    volumes:
+      - storage:/var/www/html/storage:ro
+      - uploads:/var/www/html/public/uploads:ro
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1/up"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    mem_limit: 64m
+    cpus: 0.5
+    logging: *log
+
+  queue:
+    <<: *app
+    container_name: eduziyo_queue
+    user: www-data
+    command: php artisan queue:work --sleep=3 --tries=3 --timeout=120 --max-time=3600
+    depends_on: [app]
+    mem_limit: 256m
+    cpus: 0.5
+
+  scheduler:
+    <<: *app
+    container_name: eduziyo_scheduler
+    user: www-data
+    command: php artisan schedule:work
+    depends_on: [app]
+    mem_limit: 192m
+    cpus: 0.5
+
+  # Cron/navbat/modem to'xtasa sAdminlarga Telegram xabari (cron o'zi to'xtasa ham ishlaydi — alohida jarayon)
+  watchdog:
+    <<: *app
+    container_name: eduziyo_watchdog
+    user: www-data
+    command: php artisan system:watch --loop
+    depends_on: [app]
+    mem_limit: 128m
+    cpus: 0.25
+
+  # USB modem SMS ishchisi. Faqat modem ulangan bo'lsa:  docker compose ... --profile modem up -d
+  modem:
+    <<: *app
+    container_name: eduziyo_modem
+    profiles: ["modem"]
+    user: root
+    group_add: ["20"]            # Ubuntu'da `dialout` guruhi (ttyUSB* shu guruhda)
+    command: php artisan sms:modem-run --sleep=3
+    volumes:
+      - storage:/var/www/html/storage
+      - uploads:/var/www/html/public/uploads
+      - /dev:/dev
+    device_cgroup_rules:
+      - "c 188:* rmw"            # ttyUSB*
+      - "c 166:* rmw"            # ttyACM*
+    mem_limit: 192m
+    cpus: 0.5
+
+networks:
+  internal: {}
+  db:
+    external: true
+    name: ${DB_NETWORK:-stack_default}
+
+volumes:
+  storage: {}
+  uploads: {}

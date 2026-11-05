@@ -158,8 +158,8 @@ class V8DailyTasksTest extends TestCase
 
         app(DashboardService::class)->dismiss($manager, "debtor:{$debtor->id}");
 
-        $this->actingAs($admin)->get('/')->assertOk()->assertSee('Xodimlar faolligi');
-        $this->actingAs($manager)->get('/')->assertOk()->assertDontSee('Xodimlar faolligi');
+        $this->actingAs($admin)->get('/dashboard')->assertOk()->assertSee('Xodimlar faolligi');
+        $this->actingAs($manager)->get('/dashboard')->assertOk()->assertDontSee('Xodimlar faolligi');
     }
 
     public function test_operator_default_permissions_see_relevant_tasks(): void
@@ -202,9 +202,9 @@ class V8DailyTasksTest extends TestCase
         $sadmin = $this->user(Role::SAdmin);
         $this->assertSame([], $this->todoFor($sadmin));
 
-        $this->actingAs($sadmin)->get('/')->assertOk()->assertDontSee('BOSHQA-FILIAL-GURUHI');
+        $this->actingAs($sadmin)->get('/dashboard')->assertOk()->assertDontSee('BOSHQA-FILIAL-GURUHI');
 
         // Filial tanlansa — o'sha filialning vazifalari ko'rinadi
-        $this->withSession(['current_branch_id' => $branch->id])->get('/')->assertOk()->assertSee('BOSHQA-FILIAL-GURUHI');
+        $this->withSession(['current_branch_id' => $branch->id])->get('/dashboard')->assertOk()->assertSee('BOSHQA-FILIAL-GURUHI');
     }
 }

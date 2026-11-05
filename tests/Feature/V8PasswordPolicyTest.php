@@ -52,12 +52,12 @@ class V8PasswordPolicyTest extends TestCase
     public function test_dashboard_shows_soft_reminder_only_when_overdue(): void
     {
         $fresh = $this->user(Role::Admin, permissions: []);
-        $this->actingAs($fresh)->get('/')->assertDontSee("kundan beri o'zgarmagan", false);
+        $this->actingAs($fresh)->get('/dashboard')->assertDontSee("kundan beri o'zgarmagan", false);
 
         $overdue = $this->user(Role::Admin, permissions: []);
         $overdue->forceFill(['password_changed_at' => now()->subDays(45)])->save();
 
-        $this->actingAs($overdue)->get('/')->assertSee("45 kundan beri o'zgarmagan", false);
+        $this->actingAs($overdue)->get('/dashboard')->assertSee("45 kundan beri o'zgarmagan", false);
     }
 
     public function test_changing_own_password_revokes_api_tokens(): void

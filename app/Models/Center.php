@@ -18,7 +18,7 @@ class Center extends Model
     protected $fillable = [
         'name', 'code', 'status', 'owner_user_id', 'owner_name', 'owner_phone',
         'tariff_ends_at', 'read_only_since', 'delete_after', 'reminders_sent',
-        'is_demo', 'notes', 'created_by',
+        'is_demo', 'notes', 'created_by', 'logo_path',
     ];
 
     protected $attributes = ['status' => 'active'];

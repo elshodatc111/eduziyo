@@ -25,3 +25,25 @@ Schedule::job(new QueueHeartbeatJob())->everyFiveMinutes();
 
 // EDUZIYO E0: markaz izolyatsiyasi auditi (center_id bo'sh/mos emas qatorlar) - muammo bo'lsa buyruq xato bilan tugaydi
 Schedule::command('tenancy:audit')->dailyAt('03:30');
+
+// EDUZIYO E7d: ommaviy demo markazni har tun boshlang'ich holatga qaytarish (faqat is_demo markaz)
+Schedule::command('demo:reset')->dailyAt('03:10')->withoutOverlapping();
+
+// EDUZIYO E4: markazlar tarif hayot sikli (eslatma, faqat ko'rish rejimi, muddati o'tganini o'chirish)
+Schedule::command('centers:lifecycle')->hourly()->withoutOverlapping();
+
+// EDUZIYO E8: kunlik shifrlangan baza zaxirasi Telegram orqali (03:00 dagi `app:backup` dan keyin), cheklar/fayllar - haftalik
+Schedule::command('backup:telegram')->dailyAt('03:20')->withoutOverlapping();
+Schedule::command('backup:telegram --files')->weeklyOn(0, '04:00')->withoutOverlapping();
+
+// EDUZIYO: modem navbatidagi (olinmagan/xato) SMS'larni Eskiz'ga o'tkazish va eski SMS matnlarini tozalash
+Schedule::command('sms:dispatch')->everyMinute()->withoutOverlapping();
+Schedule::command('sms:prune-text')->dailyAt('04:00');
+Schedule::command('support:tick')->hourly()->withoutOverlapping();
+
+// EDUZIYO E3: jarayonlar nazorati (cron/navbat/modem/zaxira/disk) — o'zgarish bo'lsa sAdminlarga Telegram xabari.
+// Cron o'zi to'xtasa, bu vazifa ham to'xtaydi; shuning uchun Docker'da `system:watch --loop` konteyneri alohida ishlaydi.
+Schedule::command('system:watch')->everyFiveMinutes()->withoutOverlapping();
+
+// EDUZIYO E3: botga ulangan ota-ona/o'quvchilarga qarz eslatmasi (Telegram, bepul)
+Schedule::command('telegram:debts')->dailyAt('09:20')->withoutOverlapping();

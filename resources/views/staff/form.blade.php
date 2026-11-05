@@ -45,9 +45,10 @@
             <x-input name="hired_at" type="date" label="Ishga olingan sana" :value="$staff->hired_at?->format('Y-m-d')" hint="O'qituvchi uchun: «Usluga» (staj ustamasi) shu sanadan hisoblanadi." />
             <x-input name="address" label="Manzil" :value="$staff->address" class="sm:col-span-2" />
 
-            <x-input name="password" type="password" label="Parol" :required="! $staff->exists" autocomplete="new-password"
-                     :hint="$staff->exists ? 'O\'zgartirmaslik uchun bo\'sh qoldiring.' : 'Kamida 8 ta belgi.'" />
-            <x-input name="password_confirmation" type="password" label="Parolni takrorlang" autocomplete="new-password" />
+            @unless ($staff->exists)
+                <x-input name="password" type="password" label="Boshlang'ich parol" required autocomplete="new-password" hint="Kamida 8 ta belgi. Keyin parol faqat Telegram bot orqali tiklanadi." />
+                <x-input name="password_confirmation" type="password" label="Parolni takrorlang" autocomplete="new-password" />
+            @endunless
 
             <x-select name="status" label="Holat" required>
                 @foreach (\App\Enums\UserStatus::cases() as $s)

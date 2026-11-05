@@ -38,7 +38,7 @@ use Illuminate\Support\Facades\Auth;
  *
  *   php artisan db:seed --class=DemoSeeder
  *
- * Barcha demo foydalanuvchilar paroli: demo12345. HAQIQIY serverda ishlatmang.
+ * Barcha demo foydalanuvchilar paroli: demo12345 (ommaviy demo'da har tozalashda tasodifiy). HAQIQIY serverda ishlatmang.
  */
 class DemoSeeder extends Seeder
 {
@@ -47,6 +47,20 @@ class DemoSeeder extends Seeder
     private const BRANCHES = [
         ['Test filiali', 'test', '90'], ['Qarshi filiali', 'qarshi', '91'],
     ];
+
+    /** @var array<int, array{0:string,1:string,2:string}> */
+    private array $branches = self::BRANCHES;
+
+    private string $password = self::PASSWORD;
+
+    /** Ommaviy demo (DemoService) uchun: boshqa filial nomlari/kodlari va tasodifiy parol. */
+    public function configure(array $branches, string $password): static
+    {
+        $this->branches = $branches;
+        $this->password = $password;
+
+        return $this;
+    }
 
     private const MALE = ['Aziz', 'Bobur', 'Jasur', 'Sardor', 'Otabek', 'Dilshod', 'Rustam', 'Shohruh', 'Umid', 'Behruz', 'Anvar', 'Sanjar', 'Farhod', 'Ulugbek', 'Jahongir', 'Nodir', 'Eldor', 'Islom', 'Murod', 'Abbos'];
     private const FEMALE = ['Malika', 'Dilnoza', 'Zilola', 'Nigora', 'Madina', 'Sevara', 'Gulnora', 'Feruza', 'Kamola', 'Shahnoza', 'Sarvinoz', 'Nilufar', 'Mohira', 'Lola', 'Barno', 'Iroda', 'Munisa', 'Zarina', 'Sabina', 'Ozoda'];
@@ -66,10 +80,10 @@ class DemoSeeder extends Seeder
         // EDUZIYO: demo filiallar bitta demo markazga tegishli; markaz direktori ham yaratiladi
         $this->center = Center::firstOrCreate(['code' => 'demo'], ['name' => 'Demo markaz', 'status' => 'active', 'is_demo' => true]);
         if (! User::where('username', 'demo.direktor')->exists()) {
-            User::create(['role' => Role::Owner, 'center_id' => $this->center->id, 'name' => 'Demo Direktor', 'username' => 'demo.direktor', 'phone' => '+998 90 000 00 01', 'password' => self::PASSWORD]);
+            User::create(['role' => Role::Owner, 'center_id' => $this->center->id, 'name' => 'Demo Direktor', 'username' => 'demo.direktor', 'phone' => '+998 90 000 00 01', 'password' => $this->password]);
         }
 
-        foreach (self::BRANCHES as $i => [$name, $slug, $code]) {
+        foreach ($this->branches as $i => [$name, $slug, $code]) {
             if (Branch::where('code', $slug)->exists()) {
                 $this->command?->warn("«{$name}» filiali allaqachon bor, o'tkazib yuborildi.");
 
@@ -83,7 +97,7 @@ class DemoSeeder extends Seeder
         Auth::logout();
 
         if ($summary) {
-            $this->command?->info("Demo ma'lumotlar tayyor. Barcha parollar: ".self::PASSWORD);
+            $this->command?->info("Demo ma'lumotlar tayyor. Barcha parollar: ".$this->password);
             $this->command?->table(['Filial', 'Admin', 'Menejerlar', "O'qituvchi", "O'quvchilar", 'Guruhlar', 'Murojaatlar'], $summary);
         }
     }
@@ -176,7 +190,7 @@ class DemoSeeder extends Seeder
 
     private function staff(Branch $branch, Role $role, string $username, string $name): User
     {
-        $user = User::create(['branch_id' => $branch->id, 'role' => $role, 'name' => $name, 'username' => $username, 'phone' => $this->phone(), 'password' => self::PASSWORD]);
+        $user = User::create(['branch_id' => $branch->id, 'role' => $role, 'name' => $name, 'username' => $username, 'phone' => $this->phone(), 'password' => $this->password]);
         $user->syncPermissions(PermissionRegistry::defaultsFor($role));
 
         return $user;

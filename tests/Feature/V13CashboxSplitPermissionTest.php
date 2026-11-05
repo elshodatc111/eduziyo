@@ -85,16 +85,6 @@ class V13CashboxSplitPermissionTest extends TestCase
         $this->actingAs($u)->post(route('cashbox.cancel', $expense))->assertRedirect();
     }
 
-    public function test_api_enforces_kind_permissions(): void
-    {
-        $b = $this->branch();
-        $this->fund($b, Wallet::TillCash, 500000);
-        $u = $this->user(Role::Operator, $b, ['cashbox.request']);
-        $token = $u->createToken('m')->plainTextToken;
-
-        $this->api($token)->postJson('/api/v1/cashbox/requests', $this->payload('withdrawal'))->assertForbidden();
-        $this->api($token)->postJson('/api/v1/cashbox/requests', $this->payload('expense'))->assertCreated();
-    }
 
     public function test_permission_is_registered_with_separate_labels(): void
     {

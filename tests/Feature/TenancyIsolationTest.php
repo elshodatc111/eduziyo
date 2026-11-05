@@ -97,7 +97,7 @@ class TenancyIsolationTest extends TestCase
     {
         $owner = $this->user(Role::Owner, null, [], ['center_id' => $this->a->id]);
 
-        $this->actingAs($owner)->get('/')->assertOk()->assertSee('Filial A')->assertDontSee('Filial B');
+        $this->actingAs($owner)->get('/dashboard')->assertOk()->assertSee('Filial A')->assertDontSee('Filial B');
 
         $this->actingAs($owner)->post('/branch/switch', ['branch_id' => $this->bb->id])->assertSessionHasErrors('branch_id');
         $this->assertNull(session('current_branch_id'));
@@ -151,9 +151,11 @@ class TenancyIsolationTest extends TestCase
     {
         $owner = $this->user(Role::Owner, null, [], ['center_id' => $this->a->id]);
 
-        foreach (['/branches', '/superadmins', '/system-status'] as $url) {
+        foreach (['/superadmins', '/system-status', '/platform/markazlar', '/platform/toldirish', '/platform/tahlil'] as $url) {
             $this->actingAs($owner)->get($url)->assertForbidden();
         }
+        // Direktor o'z markazining filiallarini boshqaradi (E4), boshqa markaz filiali esa unga ko'rinmaydi
+        $this->actingAs($owner)->get('/branches')->assertOk()->assertSee($this->ba->name)->assertDontSee($this->bb->name);
         $this->actingAs($owner)->post('/center/switch', ['center_id' => $this->b->id])->assertForbidden();
     }
 

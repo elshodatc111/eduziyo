@@ -3,8 +3,8 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Kirish · Edunova CRM</title>
-    <link rel="icon" href="{{ asset('favicon.svg') }}" type="image/svg+xml">
+    <title>Kirish · {{ \App\Support\Brand::name() }}</title>
+    @include('partials.pwa-head')
     <script>try{if(localStorage.getItem('theme')==='dark'||(!localStorage.getItem('theme')&&window.matchMedia('(prefers-color-scheme: dark)').matches)){document.documentElement.classList.add('dark')}}catch(e){}</script>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
@@ -14,21 +14,21 @@
         <div class="absolute -right-24 -top-24 h-96 w-96 rounded-full bg-brand-500/60"></div>
         <div class="absolute -bottom-32 -left-16 h-[28rem] w-[28rem] rounded-full bg-brand-700/60"></div>
         <div class="relative flex items-center gap-3 text-white">
-            <span class="inline-flex h-11 w-11 items-center justify-center rounded-xl bg-white text-xl font-black text-brand-600">E</span>
-            <span class="text-2xl font-extrabold tracking-tight">Edunova</span>
+            <x-logo class="h-11 w-11" />
+            <span class="text-2xl font-extrabold tracking-tight">{{ \App\Support\Brand::name() }}</span>
         </div>
         <div class="relative max-w-md text-white">
             <h2 class="text-4xl font-extrabold leading-tight tracking-tight">O'quv markazingizni bitta tizimdan boshqaring.</h2>
             <p class="mt-4 text-lg text-brand-100">Filiallar, o'quvchilar, davomad, to'lovlar va hisobotlar — barchasi bir joyda.</p>
         </div>
-        <p class="relative text-sm text-brand-200">© {{ date('Y') }} Edunova CRM</p>
+        <p class="relative text-sm text-brand-200">© {{ date('Y') }} {{ \App\Support\Brand::name() }}</p>
     </div>
 
     <div class="flex items-center justify-center bg-white p-6 dark:bg-ink-950 sm:p-12">
         <div class="w-full max-w-sm">
             <div class="mb-8 flex items-center gap-3 lg:hidden">
                 <x-logo />
-                <span class="text-xl font-extrabold tracking-tight text-ink-900 dark:text-white">Edunova</span>
+                <span class="text-xl font-extrabold tracking-tight text-ink-900 dark:text-white">{{ \App\Support\Brand::name() }}</span>
             </div>
 
             <h1 class="text-2xl font-bold tracking-tight text-ink-900 dark:text-white">Tizimga kirish</h1>
@@ -44,6 +44,8 @@
                 </label>
 
                 <button type="submit" class="btn-primary w-full py-3">Kirish</button>
+                <a href="{{ route('password.request') }}" class="block text-center text-sm font-semibold text-brand-600">Parolni unutdingizmi?</a>
+                <p class="text-center text-xs text-ink-500">Kirish orqali <a href="{{ route('legal.terms') }}" class="underline" target="_blank">shartlar</a> va <a href="{{ route('legal.privacy') }}" class="underline" target="_blank">maxfiylik siyosatiga</a> rozilik bildirasiz.</p>
             </form>
         </div>
     </div>

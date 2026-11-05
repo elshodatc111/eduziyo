@@ -9,7 +9,6 @@ use App\Services\AuthService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Validation\ValidationException;
 
 class LoginController extends Controller
 {
@@ -22,15 +21,15 @@ class LoginController extends Controller
     {
         $user = $auth->authenticate($request->input('login'), $request->input('password'), $request);
 
-        if (! $user->role->canUsePanel()) {
-            throw ValidationException::withMessages(['login' => "O'quvchilar faqat mobil ilovadan foydalanadi."]);
-        }
-
         Auth::login($user, $request->boolean('remember'));
         $request->session()->regenerate();
 
         $user->forceFill(['last_login_at' => now()])->save();
         AuditLog::record('auth.login', $user, 'Tizimga kirdi');
+
+        if ($user->role->usesCabinet()) {
+            return redirect()->route('cabinet.home');
+        }
 
         return redirect()->intended(route('dashboard'));
     }
@@ -43,6 +42,7 @@ class LoginController extends Controller
         $request->session()->invalidate();
         $request->session()->regenerateToken();
 
-        return redirect()->route('login');
+        // Chiqqach login sahifasiga emas, bosh (sotuv) sahifasiga qaytariladi
+        return redirect('/');
     }
 }

@@ -44,6 +44,8 @@ class LeadService
                 'status' => Lead::NEW,
                 'is_repeat' => $this->findStudentByPhone($branch->id, $phone) !== null,
                 'created_by' => $actor?->id,
+                'consent_at' => $data['consent_at'] ?? null,
+                'consent_version' => $data['consent_version'] ?? null,
             ]);
 
             $this->note($lead, $actor ? "Murojat qo'lda kiritildi" : 'Murojat sayt orqali qabul qilindi', $actor);

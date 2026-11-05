@@ -106,16 +106,6 @@ class StudentController extends Controller
         return redirect()->route('students.show', $student)->with('success', "Ma'lumotlar saqlandi.");
     }
 
-    public function resetPassword(User $student): RedirectResponse
-    {
-        $this->authorize('students.update');
-
-        $password = $this->students->resetPassword($student);
-
-        return back()->with('success', 'Yangi parol yaratildi.')
-            ->with('credentials', ['login' => $student->username, 'password' => $password]);
-    }
-
     public function archive(User $student): RedirectResponse
     {
         $this->authorize('students.archive');

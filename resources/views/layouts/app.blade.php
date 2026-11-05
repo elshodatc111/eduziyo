@@ -4,12 +4,14 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>@yield('title', 'Bosh sahifa') · Edunova CRM</title>
-    <link rel="icon" href="{{ asset('favicon.svg') }}" type="image/svg+xml">
+    <title>@yield('title', 'Bosh sahifa') · {{ \App\Support\Brand::name() }}</title>
+    @include('partials.pwa-head')
     <script>try{if(localStorage.getItem('theme')==='dark'||(!localStorage.getItem('theme')&&window.matchMedia('(prefers-color-scheme: dark)').matches)){document.documentElement.classList.add('dark')}}catch(e){}</script>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
 <body class="h-full" x-data="{ sidebar: false }">
+@include('partials.demo-banner')
+@include('partials.center-banner')
 @php
     $me = auth()->user();
     $branches = $me->isCenterWide() ? \App\Models\Branch::orderBy('name')->get(['id', 'name', 'status']) : collect();
@@ -27,9 +29,10 @@
 <aside :class="sidebar ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'"
        class="fixed inset-y-0 left-0 z-40 flex w-72 flex-col border-r border-ink-200/70 bg-white transition-transform dark:border-ink-800 dark:bg-ink-900">
     <div class="flex h-16 items-center gap-3 px-5">
-        <x-logo />
+        @php($brandCenter = auth()->user()?->center_id ? \App\Models\Center::find(auth()->user()->center_id) : null)
+        <x-logo :center="$brandCenter" />
         <div class="leading-tight">
-            <div class="text-base font-extrabold tracking-tight text-ink-900 dark:text-white">Edunova</div>
+            <div class="max-w-[10rem] truncate text-base font-extrabold tracking-tight text-ink-900 dark:text-white">{{ $brandCenter?->name ?? \App\Support\Brand::name() }}</div>
             <div class="text-[11px] font-medium uppercase tracking-widest text-ink-400">CRM tizimi</div>
         </div>
         <button class="ml-auto lg:hidden" @click="sidebar = false"><x-icon name="x" /></button>
@@ -54,6 +57,8 @@
         <button class="btn-ghost -ml-2 p-2 lg:hidden" @click="sidebar = true" aria-label="Menyu"><x-icon name="menu" /></button>
 
         <div class="flex-1"></div>
+
+        <a href="{{ route('landing') }}" target="_blank" rel="noopener" class="btn-ghost btn-sm hidden items-center gap-1.5 sm:inline-flex" title="Sotuv sahifasini ochish"><x-icon name="home" class="h-4 w-4" /> Sayt</a>
 
         @if ($me->isSuperAdmin())
             <form method="POST" action="{{ route('centers.switch') }}" class="flex items-center gap-2">
@@ -91,10 +96,7 @@
             <x-icon name="sun" x-show="$store.theme.dark" x-cloak />
         </button>
 
-        <form method="POST" action="{{ route('logout') }}">
-            @csrf
-            <button class="btn-ghost p-2" title="Chiqish" aria-label="Chiqish"><x-icon name="logout" /></button>
-        </form>
+        <x-logout-button />
     </header>
 
     <main class="mx-auto max-w-7xl p-4 sm:p-6 lg:p-8">
@@ -118,5 +120,6 @@
     });
 })();
 </script>
+@include('partials.pwa-install')
 </body>
 </html>

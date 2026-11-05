@@ -1,10 +1,10 @@
 @extends('landing.layout')
-@section('title', $post->title.' · EDUZIYO')
+@section('title', $post->title.' · '.\App\Support\Brand::name())
 @section('og_image', (string) $post->imageUrl())
 @section('description', $post->excerpt ?: \Illuminate\Support\Str::limit(strip_tags($post->body), 150))
 
 @section('content')
-<article class="mx-auto max-w-3xl px-4 py-14 sm:px-6">
+<article class="lp-reveal mx-auto max-w-3xl px-4 py-16 sm:px-6">
     <a href="{{ route('landing.news') }}" class="text-sm font-semibold text-brand-600 hover:underline">← Barcha yangiliklar</a>
     <div class="mt-4 text-xs text-ink-400">{{ $post->published_at?->format('d.m.Y') }}</div>
     <h1 class="mt-1 text-3xl font-extrabold tracking-tight text-ink-900">{{ $post->title }}</h1>

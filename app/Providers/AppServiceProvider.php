@@ -13,6 +13,7 @@ use Illuminate\Pagination\Paginator;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\URL;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -24,6 +25,11 @@ class AppServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+        // Cloudflare/HTTPS orqasida havolalar va aktivlar https bo'lsin (APP_URL https:// bilan boshlansa)
+        if (str_starts_with((string) config('app.url'), 'https://')) {
+            URL::forceScheme('https');
+        }
+
         Carbon::setLocale('uz_Latn');
         Paginator::defaultView('vendor.pagination.edunova');
         Model::preventLazyLoading(! $this->app->isProduction());

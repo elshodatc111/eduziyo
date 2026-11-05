@@ -41,14 +41,17 @@ class PublicLeadController extends Controller
             return redirect()->route('apply.show', [$branch->code, 'embed' => $request->boolean('embed') ?: null])->with('sent', true);
         }
 
+        $legal = app(\App\Services\LegalService::class);
+
         $data = $request->validate([
+            'consent' => $legal->consentRequired() ? ['accepted'] : ['nullable'],
             'name' => ['required', 'string', 'max:120'],
             'phone' => ['required', 'string', new \App\Rules\UzPhone],
             'address' => ['nullable', 'string', 'max:255'],
             'lead_source_id' => ['nullable', \Illuminate\Validation\Rule::exists('lead_sources', 'id')->where('branch_id', $branch->id)->where('is_active', true)],
-        ], [], ['name' => 'Ism familiya', 'phone' => 'Telefon', 'address' => 'Manzil', 'lead_source_id' => 'Manba']);
+        ], [], ['name' => 'Ism familiya', 'phone' => 'Telefon', 'address' => 'Manzil', 'lead_source_id' => 'Manba', 'consent' => 'Rozilik']);
 
-        $leads->register($branch, $data);
+        $leads->register($branch, $legal->formConsent() + collect($data)->except('consent')->all());
 
         return redirect()->route('apply.show', [$branch->code, 'embed' => $request->boolean('embed') ?: null])->with('sent', true);
     }

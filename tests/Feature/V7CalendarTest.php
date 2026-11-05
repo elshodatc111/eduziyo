@@ -57,25 +57,25 @@ class V7CalendarTest extends TestCase
 
     public function test_dashboard_shows_calendar_to_all_staff_of_branch_only(): void
     {
-        $this->get('/')->assertOk()->assertSee('Dars kalendari')->assertSee('KALENDAR-GURUHI')->assertSee('Sentabr 2026');
-        $this->get('/?cal=2026-10')->assertOk()->assertSee('Oktabr 2026')->assertDontSee('KALENDAR-GURUHI');
-        $this->get('/?cal=xato')->assertOk()->assertSee('Sentabr 2026');            // noto'g'ri oy — joriy oy
+        $this->get('/dashboard')->assertOk()->assertSee('Dars kalendari')->assertSee('KALENDAR-GURUHI')->assertSee('Sentabr 2026');
+        $this->get('/dashboard?cal=2026-10')->assertOk()->assertSee('Oktabr 2026')->assertDontSee('KALENDAR-GURUHI');
+        $this->get('/dashboard?cal=xato')->assertOk()->assertSee('Sentabr 2026');            // noto'g'ri oy — joriy oy
 
         // Menejer va o'qituvchi ham ko'radi
-        $this->actingAs($this->user(Role::Manager, $this->branch))->get('/')->assertOk()->assertSee('KALENDAR-GURUHI');
-        $this->actingAs($this->cat['teacher'])->get('/')->assertOk()->assertSee('KALENDAR-GURUHI');
+        $this->actingAs($this->user(Role::Manager, $this->branch))->get('/dashboard')->assertOk()->assertSee('KALENDAR-GURUHI');
+        $this->actingAs($this->cat['teacher'])->get('/dashboard')->assertOk()->assertSee('KALENDAR-GURUHI');
 
         // Boshqa filial hodimi bu guruhni ko'rmaydi
         $other = $this->branch('Boshqa');
-        $this->actingAs($this->user(Role::Manager, $other))->get('/')->assertOk()->assertSee('Dars kalendari')->assertDontSee('KALENDAR-GURUHI');
+        $this->actingAs($this->user(Role::Manager, $other))->get('/dashboard')->assertOk()->assertSee('Dars kalendari')->assertDontSee('KALENDAR-GURUHI');
     }
 
     public function test_sadmin_needs_selected_branch(): void
     {
         $sadmin = $this->user(Role::SAdmin);
 
-        $this->actingAs($sadmin)->get('/')->assertOk()->assertSee('filialni tanlang')->assertDontSee('KALENDAR-GURUHI');
-        $this->withSession(['current_branch_id' => $this->branch->id])->get('/')->assertOk()->assertSee('KALENDAR-GURUHI');
+        $this->actingAs($sadmin)->get('/dashboard')->assertOk()->assertSee('filialni tanlang')->assertDontSee('KALENDAR-GURUHI');
+        $this->withSession(['current_branch_id' => $this->branch->id])->get('/dashboard')->assertOk()->assertSee('KALENDAR-GURUHI');
     }
 
     public function test_teacher_gets_link_only_for_own_groups(): void

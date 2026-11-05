@@ -34,6 +34,9 @@ return Application::configure(basePath: dirname(__DIR__))
             'role' => EnsureRole::class,
             'branch' => EnsureBranchSelected::class,
             'once' => PreventDuplicateSubmission::class,
+            'demo' => \App\Http\Middleware\DemoMode::class,
+            'writable' => \App\Http\Middleware\EnsureCenterWritable::class,
+            'legal' => \App\Http\Middleware\EnsureLegalAccepted::class,
         ]);
 
         // v8 A5: mobil ilova API'siga umumiy chegaralash (app/Providers/AppServiceProvider'da 'api' belgilangan)

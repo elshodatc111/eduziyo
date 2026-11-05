@@ -100,16 +100,18 @@ class SalesTariffMediaTest extends TestCase
         $this->actingAs($this->user(Role::SAdmin))->get(route('sales.applications'))->assertSee("Demo so'radi", false)->assertSee('Tarif: standart');
     }
 
-    public function test_demo_section_shows_credentials_only_when_both_set(): void
+    public function test_demo_text_and_toggle_are_saved_and_credentials_never_shown(): void
     {
         $sadmin = $this->user(Role::SAdmin);
         $this->get('/')->assertSee("Demo so'rash", false)->assertDontSee('Demo hisobi');
 
-        $this->actingAs($sadmin)->put(route('sales.settings.update'), ['demo_login' => 'demo.direktor', 'demo_password' => 'demo12345', 'demo_text' => 'Maxsus demo matni'])->assertRedirect();
+        $this->actingAs($sadmin)->put(route('sales.settings.update'), ['demo_text' => 'Maxsus demo matni', 'demo_enabled' => 1])->assertRedirect();
         auth()->logout();
-        $this->get('/')->assertSee('Demo hisobi')->assertSee('demo.direktor')->assertSee('Maxsus demo matni');
+        $this->get('/')->assertSee('Maxsus demo matni')->assertDontSee('Demo hisobi');
+        $this->assertSame('1', \App\Models\PlatformSetting::value('demo_enabled'));
 
-        $this->actingAs($sadmin)->put(route('sales.settings.update'), ['demo_login' => 'bad login!', 'demo_password' => 'x'])->assertSessionHasErrors('demo_login');
+        $this->actingAs($sadmin)->put(route('sales.settings.update'), ['demo_text' => 'x'])->assertRedirect();
+        $this->assertSame('0', \App\Models\PlatformSetting::value('demo_enabled'));
     }
 
     public function test_youtube_id_parser(): void

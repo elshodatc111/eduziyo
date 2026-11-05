@@ -254,6 +254,6 @@ class StatsReportTest extends TestCase
 
         $this->get('/payments')->assertOk()->assertViewHas('totals', fn ($t) => (int) $t->cash === 200000 && (int) $t->card === 0 && (int) $t->refunds === 0);
         $this->get('/cashbox')->assertOk()->assertViewHas('today', fn ($t) => (int) $t->cash === 200000 && (int) $t->card === 0);
-        $this->get('/')->assertOk()->assertViewHas('money', fn ($m) => $m['income'] === 200000 && $m['refunds'] === 0);
+        $this->get('/dashboard')->assertOk()->assertViewHas('money', fn ($m) => $m['income'] === 200000 && $m['refunds'] === 0);
     }
 }

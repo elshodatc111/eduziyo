@@ -20,6 +20,12 @@ class StudentService
      */
     public function create(array $data, User $actor, bool $notify = true, string $via = 'manual'): array
     {
+        $branchId = $data['branch_id'] ?? \App\Support\BranchContext::id();
+        $centerId = $actor->center_id ?: ($branchId ? \App\Support\CenterContext::centerOfBranch((int) $branchId) : null);
+        if ($centerId && ($center = \App\Models\Center::find($centerId)) && ! $center->is_demo) {
+            app(SubscriptionService::class)->assertCanAddStudents($center);
+        }
+
         $password = $this->generatePassword();
         $data['phone'] = Format::canonicalPhone($data['phone']) ?? $data['phone'];
         $data['phone2'] = ! empty($data['phone2']) ? (Format::canonicalPhone($data['phone2']) ?? $data['phone2']) : null;
@@ -55,18 +61,6 @@ class StudentService
         AuditLog::record('student.updated', $student, "Ma'lumotlari yangilandi");
 
         return $student;
-    }
-
-    public function resetPassword(User $student): string
-    {
-        $password = $this->generatePassword();
-        $student->update(['password' => $password]);
-        $student->tokens()->delete();
-
-        AuditLog::record('student.password_reset', $student, 'Parol yangilandi');
-        app(SmsNotifier::class)->notify('password_reset', $student, ['login' => $student->username, 'password' => $password]);
-
-        return $password;
     }
 
     public function archive(User $student): void

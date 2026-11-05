@@ -14,7 +14,7 @@ class SettingsController extends Controller
 {
     public function edit()
     {
-        return view('sales.settings', ['c' => PlatformSetting::many(LandingController::CONTACT_KEYS)]);
+        return view('sales.settings', ['c' => PlatformSetting::many(LandingController::CONTACT_KEYS), 'demoEnabled' => PlatformSetting::value('demo_enabled', '1') === '1']);
     }
 
     public function update(Request $request): RedirectResponse
@@ -28,16 +28,17 @@ class SettingsController extends Controller
             'contact_address' => ['nullable', 'string', 'max:200'],
             'tariff_text' => ['nullable', 'string', 'max:1000'],
             'demo_text' => ['nullable', 'string', 'max:1000'],
-            'demo_login' => ['nullable', 'string', 'max:60', 'regex:/^[A-Za-z0-9._@+-]+$/'],
-            'demo_password' => ['nullable', 'string', 'max:60'],
+            'demo_enabled' => ['nullable', 'boolean'],
         ], [], [
             'contact_instagram' => 'Instagram havolasi', 'contact_telegram' => 'Telegram kanal havolasi', 'contact_email' => 'Email',
-            'contact_phone1' => '1-telefon', 'contact_phone2' => '2-telefon', 'contact_address' => 'Manzil', 'tariff_text' => 'Tarif matni', 'demo_text' => 'Demo matni', 'demo_login' => 'Demo login', 'demo_password' => 'Demo parol',
+            'contact_phone1' => '1-telefon', 'contact_phone2' => '2-telefon', 'contact_address' => 'Manzil', 'tariff_text' => 'Tarif matni', 'demo_text' => 'Demo matni'
         ]);
 
         foreach (LandingController::CONTACT_KEYS as $key) {
             PlatformSetting::put($key, $data[$key] ?? null);
         }
+
+        PlatformSetting::put('demo_enabled', $request->boolean('demo_enabled') ? '1' : '0');
 
         return back()->with('success', 'Sotuv sahifasi sozlamalari saqlandi.');
     }

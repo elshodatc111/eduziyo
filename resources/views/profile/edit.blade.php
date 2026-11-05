@@ -22,5 +22,7 @@
             <x-input name="password_confirmation" type="password" label="Yangi parolni takrorlang" required autocomplete="new-password" />
             <div><button class="btn-primary">Parolni yangilash</button></div>
         </form>
+
+        @include('partials.telegram-card')
     </div>
 @endsection

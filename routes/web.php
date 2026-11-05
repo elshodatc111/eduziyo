@@ -2,7 +2,6 @@
 
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\AiChatController;
-use App\Http\Controllers\AppVersionSettingsController;
 use App\Http\Controllers\AttendanceController;
 use App\Http\Controllers\AuditLogController;
 use App\Http\Controllers\BranchController;
@@ -13,7 +12,6 @@ use App\Http\Controllers\ContractSettingsController;
 use App\Http\Controllers\CourseContentController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DiscountRuleController;
-use App\Http\Controllers\DocsController;
 use App\Http\Controllers\FinanceController;
 use App\Http\Controllers\GroupController;
 use App\Http\Controllers\GroupStudentController;
@@ -43,41 +41,196 @@ use Illuminate\Support\Facades\Route;
 Route::middleware('guest')->group(function () {
     Route::get('login', [LoginController::class, 'show'])->name('login');
     Route::post('login', [LoginController::class, 'store'])->middleware('throttle:30,1');
+
+    // Parolni tiklash - faqat Telegram bot kodi orqali (qo'lda tiklash olib tashlangan)
+    Route::get('forgot-password', [\App\Http\Controllers\Auth\PasswordResetController::class, 'forgot'])->name('password.request');
+    Route::post('forgot-password', [\App\Http\Controllers\Auth\PasswordResetController::class, 'sendCode'])->middleware('throttle:10,10')->name('password.email');
+    Route::get('reset-password', [\App\Http\Controllers\Auth\PasswordResetController::class, 'form'])->name('password.reset');
+    Route::post('reset-password', [\App\Http\Controllers\Auth\PasswordResetController::class, 'reset'])->middleware('throttle:10,10')->name('password.update');
 });
 
-// EDUZIYO sotuv sahifasi (ochiq). `/` — mehmon uchun sotuv sahifasi, kirgan foydalanuvchi uchun boshqaruv paneli.
-Route::get('/', [LandingController::class, 'index'])->name('dashboard');
+// EDUZIYO sotuv sahifasi (ochiq, doim `/` da — kirgan foydalanuvchi ham ko'ra oladi). Boshqaruv paneli — `/dashboard`.
+Route::get('/', [LandingController::class, 'index'])->name('landing');
+Route::get('manifest.webmanifest', [\App\Http\Controllers\Platform\BrandController::class, 'manifest'])->name('manifest');
 Route::post('ariza', [LandingController::class, 'apply'])->middleware('throttle:5,60')->name('landing.apply');
 Route::get('yangiliklar', [LandingController::class, 'newsIndex'])->name('landing.news');
 Route::get('yangiliklar/{post}', [LandingController::class, 'newsShow'])->name('landing.news.show');
+
+// Huquqiy hujjatlar (ochiq) va majburiy rozilik oynasi
+Route::get('oferta', [\App\Http\Controllers\LegalController::class, 'show'])->defaults('type', 'offer')->name('legal.offer');
+Route::get('maxfiylik', [\App\Http\Controllers\LegalController::class, 'show'])->defaults('type', 'privacy')->name('legal.privacy');
+Route::get('shartlar', [\App\Http\Controllers\LegalController::class, 'show'])->defaults('type', 'terms')->name('legal.terms');
+Route::middleware(['auth', 'active'])->group(function () {
+    Route::get('rozilik', [\App\Http\Controllers\LegalController::class, 'consent'])->name('legal.consent');
+    Route::post('rozilik', [\App\Http\Controllers\LegalController::class, 'accept'])->middleware('throttle:20,1')->name('legal.accept');
+});
 
 // Saytdan murojaat qoldirish (ochiq)
 Route::get('apply', [PublicLeadController::class, 'index'])->name('apply.index');
 Route::get('apply/{branch:code}', [PublicLeadController::class, 'show'])->name('apply.show');
 Route::post('apply/{branch:code}', [PublicLeadController::class, 'store'])->middleware('throttle:10,60')->name('apply.store');
 
-// v12: mobil ilova dasturchisi uchun API hujjati - ataylab ochiq (login talab qilmaydi, sir yo'q)
-Route::get('docs', [DocsController::class, 'index'])->name('docs.index');
 
-Route::middleware(['auth', 'active'])->group(function () {
+// Ommaviy demo: rol tanlab bir bosishda kirish (sotuv sahifasidan)
+Route::post('demo/chiqish', [\App\Http\Controllers\DemoController::class, 'leave'])->name('demo.leave');
+Route::post('demo/{role}', [\App\Http\Controllers\DemoController::class, 'enter'])->middleware('throttle:30,1')->name('demo.enter');
+
+Route::middleware(['auth', 'active', 'legal', 'demo', 'writable'])->group(function () {
     Route::post('logout', [LoginController::class, 'destroy'])->name('logout');
+    Route::get('dashboard', [DashboardController::class, 'index'])->name('dashboard');
+
+    // O'quvchi kabineti (E6): faqat o'quvchi roli; boshqa rollar 403, o'quvchi esa faqat shu bo'limni ko'radi
+    Route::middleware('role:student')->prefix('cabinet')->name('cabinet.')->group(function () {
+        Route::get('/', [\App\Http\Controllers\CabinetController::class, 'home'])->name('home');
+        Route::get('guruhlar', [\App\Http\Controllers\CabinetController::class, 'groups'])->name('groups');
+        Route::get('guruhlar/{group}', [\App\Http\Controllers\CabinetController::class, 'group'])->whereNumber('group')->name('groups.show');
+        Route::get('tolovlar', [\App\Http\Controllers\CabinetController::class, 'payments'])->name('payments');
+        Route::get('kurslar', [\App\Http\Controllers\CabinetController::class, 'courses'])->name('courses');
+        Route::get('kurslar/{course}', [\App\Http\Controllers\CabinetController::class, 'course'])->whereNumber('course')->name('courses.show');
+        Route::post('kurslar/{course}/test', [\App\Http\Controllers\CabinetController::class, 'testStart'])->whereNumber('course')->middleware('throttle:30,1')->name('courses.test');
+        Route::get('test/{attempt}', [\App\Http\Controllers\CabinetController::class, 'test'])->whereNumber('attempt')->name('test');
+        Route::post('test/{attempt}', [\App\Http\Controllers\CabinetController::class, 'testSubmit'])->whereNumber('attempt')->name('test.submit');
+        Route::get('xabarlar', [\App\Http\Controllers\CabinetController::class, 'notifications'])->name('notifications');
+        Route::get('profil', [\App\Http\Controllers\CabinetController::class, 'profile'])->name('profile');
+        Route::put('profil', [\App\Http\Controllers\CabinetController::class, 'updateProfile'])->name('profile.update');
+        Route::put('profil/parol', [\App\Http\Controllers\CabinetController::class, 'password'])->name('profile.password');
+        Route::post('profil/telegram', [\App\Http\Controllers\TelegramLinkController::class, 'link'])->middleware('throttle:10,1')->name('telegram.link');
+        Route::delete('profil/telegram', [\App\Http\Controllers\TelegramLinkController::class, 'unlink'])->name('telegram.unlink');
+    });
+
     Route::post('tasks/dismiss', [DashboardController::class, 'dismissTask'])->name('tasks.dismiss');
+
+    // O'qituvchi: o'z ish haqi va dars jadvali (faqat o'zi)
+    Route::middleware('role:teacher')->prefix('mening')->name('teacher.')->group(function () {
+        Route::get('ish-haqi', [\App\Http\Controllers\TeacherSelfController::class, 'payroll'])->name('payroll');
+        Route::get('jadval', [\App\Http\Controllers\TeacherSelfController::class, 'schedule'])->name('schedule');
+    });
 
     Route::get('profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::put('profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::put('profile/password', [ProfileController::class, 'password'])->name('profile.password');
+    Route::post('profile/telegram', [\App\Http\Controllers\TelegramLinkController::class, 'link'])->middleware('throttle:10,1')->name('telegram.link');
+    Route::delete('profile/telegram', [\App\Http\Controllers\TelegramLinkController::class, 'unlink'])->name('telegram.unlink');
 
     // Filial almashtirish: sAdmin (barcha filiallar) va qo'shimcha filialli operator (faqat o'ziga berilganlar)
     Route::post('branch/switch', [BranchController::class, 'switch'])->name('branches.switch');
     Route::post('center/switch', [\App\Http\Controllers\CenterController::class, 'switch'])->name('centers.switch');
 
-    // Filiallar (faqat sAdmin)
-    Route::middleware('role:sadmin')->group(function () {
+    // Filiallar: sAdmin va direktor (o'z markazida)
+    Route::middleware('role:sadmin,owner')->group(function () {
         Route::resource('branches', BranchController::class)->except(['show', 'destroy']);
         Route::post('branches/{branch}/close', [BranchController::class, 'close'])->name('branches.close');
         Route::post('branches/{branch}/reopen', [BranchController::class, 'reopen'])->name('branches.reopen');
-        // v10 (7-band): filialni BUTUNLAY o'chirish (barcha ma'lumoti bilan) - faqat sAdmin, nom tasdiqlash bilan
+        // v10 (7-band): filialni BUTUNLAY o'chirish (barcha ma'lumoti bilan), nom tasdiqlash bilan
         Route::delete('branches/{branch}', [BranchController::class, 'destroy'])->name('branches.destroy');
+    });
+
+    // Direktorning «Markaz» bo'limi: obuna, balans, tahlil, eksport
+    Route::middleware('role:owner')->prefix('markaz')->name('center.')->group(function () {
+        $c = \App\Http\Controllers\CenterPanelController::class;
+        Route::get('/', [$c, 'index'])->name('index');
+        Route::get('tariflar', [$c, 'tariffs'])->name('tariffs');
+        Route::post('tariflar/{tariff}', [$c, 'buy'])->whereNumber('tariff')->middleware('throttle:10,1')->name('tariffs.buy');
+        Route::get('balans', [$c, 'topupForm'])->name('topup');
+        Route::post('balans', [$c, 'topupStore'])->middleware('throttle:10,60')->name('topup.store');
+        Route::get('chek/{topup}', [$c, 'receipt'])->whereNumber('topup')->name('receipt');
+        Route::get('tahlil', [$c, 'analytics'])->name('analytics');
+        Route::get('eksport/{type}', [$c, 'export'])->middleware('throttle:20,1')->name('export');
+        Route::post('logotip', [\App\Http\Controllers\CenterBrandController::class, 'update'])->middleware('throttle:10,1')->name('logo.update');
+        Route::delete('logotip', [\App\Http\Controllers\CenterBrandController::class, 'destroy'])->name('logo.destroy');
+        $sp = \App\Http\Controllers\CenterSupportController::class;
+        Route::get('murojaat', [$sp, 'index'])->name('support');
+        Route::post('murojaat', [$sp, 'store'])->middleware('throttle:5,60')->name('support.store');
+        Route::get('murojaat/{ticket}', [$sp, 'show'])->whereNumber('ticket')->name('support.show');
+        Route::post('murojaat/{ticket}/javob', [$sp, 'reply'])->whereNumber('ticket')->middleware('throttle:30,60')->name('support.reply');
+        Route::get('murojaat-fayl/{attachment}', [$sp, 'file'])->whereNumber('attachment')->name('support.file');
+        Route::post('murojaat/{ticket}/yopish', [$sp, 'close'])->whereNumber('ticket')->name('support.close');
+        Route::post('murojaat/{ticket}/baho', [$sp, 'rate'])->whereNumber('ticket')->name('support.rate');
+        $dc = \App\Http\Controllers\DirectorController::class;
+        Route::get('direktorlar', [$dc, 'index'])->name('directors');
+        Route::post('direktorlar', [$dc, 'store'])->middleware('throttle:10,1')->name('directors.store');
+        Route::post('direktorlar/{director}/holat', [$dc, 'toggle'])->whereNumber('director')->name('directors.toggle');
+        $sc = \App\Http\Controllers\CenterSmsController::class;
+        Route::get('sms', [$sc, 'index'])->name('sms');
+        Route::post('sms-faktura/{invoice}/qabul', [$sc, 'accept'])->whereNumber('invoice')->middleware('throttle:10,1')->name('sms.accept');
+        Route::post('sms-faktura/{invoice}/rad', [$sc, 'decline'])->whereNumber('invoice')->name('sms.decline');
+    });
+
+    Route::middleware('role:sadmin')->group(function () {
+        // Platforma: markazlar konsoli, balans to'ldirish so'rovlari, kartalar, tahlil
+        $pc = \App\Http\Controllers\Platform\CenterConsoleController::class;
+        $pt = \App\Http\Controllers\Platform\TopupController::class;
+        Route::get('platform/markazlar', [$pc, 'index'])->name('platform.centers.index');
+        Route::get('platform/markazlar/yangi', [$pc, 'create'])->name('platform.centers.create');
+        Route::post('platform/markazlar', [$pc, 'store'])->name('platform.centers.store');
+        Route::get('platform/markazlar/{center}', [$pc, 'show'])->whereNumber('center')->name('platform.centers.show');
+        Route::post('platform/markazlar/{center}/tarif', [$pc, 'grant'])->whereNumber('center')->name('platform.centers.grant');
+        Route::post('platform/markazlar/{center}/balans', [$pc, 'adjust'])->whereNumber('center')->name('platform.centers.adjust');
+        Route::delete('platform/markazlar/{center}', [$pc, 'destroy'])->whereNumber('center')->middleware('throttle:5,1')->name('platform.centers.destroy');
+        Route::post('platform/markazlar/{center}/toxtatish', [$pc, 'suspend'])->whereNumber('center')->name('platform.centers.suspend');
+        Route::post('platform/markazlar/{center}/tiklash', [$pc, 'resume'])->whereNumber('center')->name('platform.centers.resume');
+        Route::get('platform/tahlil', [$pc, 'analytics'])->name('platform.analytics');
+        $dc = \App\Http\Controllers\DirectorController::class;
+        Route::get('platform/markazlar/{center}/direktorlar', [$dc, 'index'])->whereNumber('center')->name('platform.directors');
+        Route::post('platform/markazlar/{center}/direktorlar', [$dc, 'store'])->whereNumber('center')->name('platform.directors.store');
+        Route::post('platform/markazlar/{center}/direktorlar/{director}/holat', [$dc, 'toggle'])->whereNumber(['center', 'director'])->name('platform.directors.toggle');
+        $vg = \App\Http\Controllers\Platform\VideoGuideController::class;
+        Route::get('platform/qollanma-video', [$vg, 'index'])->name('platform.guides');
+        Route::post('platform/qollanma-video', [$vg, 'store'])->name('platform.guides.store');
+        Route::put('platform/qollanma-video/{guide}', [$vg, 'update'])->whereNumber('guide')->name('platform.guides.update');
+        Route::post('platform/qollanma-video/{guide}/muqova', [$vg, 'setCover'])->whereNumber('guide')->name('platform.guides.cover');
+        Route::delete('platform/qollanma-video/{guide}/muqova', [$vg, 'removeCover'])->whereNumber('guide')->name('platform.guides.cover.remove');
+        Route::post('platform/qollanma-video/{guide}/holat', [$vg, 'toggle'])->whereNumber('guide')->name('platform.guides.toggle');
+        Route::delete('platform/qollanma-video/{guide}', [$vg, 'destroy'])->whereNumber('guide')->name('platform.guides.destroy');
+        $su = \App\Http\Controllers\Platform\SupportController::class;
+        Route::get('platform/murojaatlar', [$su, 'index'])->name('platform.support');
+        Route::put('platform/murojaatlar/sozlama', [$su, 'settings'])->name('platform.support.settings');
+        Route::get('platform/murojaatlar/{ticket}', [$su, 'show'])->whereNumber('ticket')->name('platform.support.show');
+        Route::post('platform/murojaatlar/{ticket}/javob', [$su, 'reply'])->whereNumber('ticket')->name('platform.support.reply');
+        Route::get('platform/murojaat-fayl/{attachment}', [$su, 'file'])->whereNumber('attachment')->name('platform.support.file');
+        Route::post('platform/murojaatlar/{ticket}/yopish', [$su, 'close'])->whereNumber('ticket')->name('platform.support.close');
+        $bc = \App\Http\Controllers\Platform\BrandController::class;
+        $ic = \App\Http\Controllers\Platform\IntegrationController::class;
+        Route::get('platform/integratsiyalar', [$ic, 'index'])->name('platform.integrations');
+        Route::put('platform/integratsiyalar/telegram', [$ic, 'saveTelegram'])->middleware('throttle:20,1')->name('platform.integrations.telegram');
+        Route::delete('platform/integratsiyalar/telegram', [$ic, 'clearTelegram'])->name('platform.integrations.telegram.clear');
+        Route::post('platform/integratsiyalar/webhook', [$ic, 'setWebhook'])->middleware('throttle:6,1')->name('platform.integrations.webhook');
+        Route::delete('platform/integratsiyalar/webhook', [$ic, 'removeWebhook'])->middleware('throttle:6,1')->name('platform.integrations.webhook.remove');
+        Route::put('platform/integratsiyalar/modem', [$ic, 'saveModem'])->name('platform.integrations.modem');
+
+        $ld = \App\Http\Controllers\Platform\LegalDocumentController::class;
+        Route::get('platform/hujjatlar', [$ld, 'index'])->name('platform.legal');
+        Route::get('platform/hujjatlar/yangi', [$ld, 'create'])->name('platform.legal.create');
+        Route::post('platform/hujjatlar', [$ld, 'store'])->name('platform.legal.store');
+        Route::get('platform/hujjatlar/hisobot', [$ld, 'report'])->name('platform.legal.report');
+        Route::get('platform/hujjatlar/{doc}', [$ld, 'edit'])->whereNumber('doc')->name('platform.legal.edit');
+        Route::put('platform/hujjatlar/{doc}', [$ld, 'update'])->whereNumber('doc')->name('platform.legal.update');
+        Route::post('platform/hujjatlar/{doc}/elon', [$ld, 'publish'])->whereNumber('doc')->name('platform.legal.publish');
+        Route::post('platform/hujjatlar/{doc}/versiya', [$ld, 'newVersion'])->whereNumber('doc')->name('platform.legal.version');
+        Route::delete('platform/hujjatlar/{doc}', [$ld, 'destroy'])->whereNumber('doc')->name('platform.legal.destroy');
+
+        Route::get('platform/brending', [$bc, 'edit'])->name('platform.brand');
+        Route::put('platform/brending', [$bc, 'update'])->name('platform.brand.update');
+        Route::delete('platform/brending/{what}', [$bc, 'remove'])->name('platform.brand.remove');
+        $mc = \App\Http\Controllers\Platform\ModemController::class;
+        Route::get('platform/modemlar', [$mc, 'index'])->name('platform.modems');
+        Route::post('platform/modemlar/qidirish', [$mc, 'scan'])->middleware('throttle:6,1')->name('platform.modems.scan');
+        Route::post('platform/modemlar/{modem}/holat', [$mc, 'toggle'])->whereNumber('modem')->name('platform.modems.toggle');
+        Route::put('platform/modemlar/{modem}', [$mc, 'update'])->whereNumber('modem')->name('platform.modems.update');
+        Route::post('platform/modemlar/{modem}/tozalash', [$mc, 'reset'])->whereNumber('modem')->name('platform.modems.reset');
+        Route::post('platform/modemlar/{modem}/sinov', [$mc, 'test'])->whereNumber('modem')->middleware('throttle:10,1')->name('platform.modems.test');
+        $ps = \App\Http\Controllers\Platform\SmsPlatformController::class;
+        Route::get('platform/sms', [$ps, 'index'])->name('platform.sms');
+        Route::put('platform/sms/sozlama', [$ps, 'settings'])->name('platform.sms.settings');
+        Route::post('platform/markazlar/{center}/sms-faktura', [$ps, 'invoiceStore'])->whereNumber('center')->name('platform.sms.invoices.store');
+        Route::post('platform/sms-faktura/{invoice}/bekor', [$ps, 'invoiceCancel'])->whereNumber('invoice')->name('platform.sms.invoices.cancel');
+        Route::get('platform/toldirish', [$pt, 'index'])->name('platform.topups');
+        Route::get('platform/toldirish/{topup}/chek', [\App\Http\Controllers\Platform\TopupController::class, 'receipt'])->whereNumber('topup')->name('platform.topups.receipt');
+        Route::post('platform/toldirish/{topup}/tasdiqlash', [$pt, 'approve'])->whereNumber('topup')->name('platform.topups.approve');
+        Route::post('platform/toldirish/{topup}/rad', [$pt, 'reject'])->whereNumber('topup')->name('platform.topups.reject');
+        Route::post('platform/kartalar', [$pt, 'cardStore'])->name('platform.cards.store');
+        Route::post('platform/kartalar/{card}/almashtirish', [$pt, 'cardToggle'])->whereNumber('card')->name('platform.cards.toggle');
+        Route::delete('platform/kartalar/{card}', [$pt, 'cardDestroy'])->whereNumber('card')->name('platform.cards.destroy');
 
         // v8 A4: butun tizim darajasidagi holat (cron, zaxira, disk, ...) - filialga bog'liq emas
         Route::get('system-status', [SystemStatusController::class, 'index'])->name('system-status.index');
@@ -89,8 +242,6 @@ Route::middleware(['auth', 'active'])->group(function () {
         Route::post('notifications', [NotificationController::class, 'store'])->middleware('throttle:20,1')->name('notifications.store');
 
         // v12: mobil ilova versiyasi (majburiy/yumshoq yangilash) sozlamalari
-        Route::get('app-version', [AppVersionSettingsController::class, 'edit'])->name('app-version.edit');
-        Route::put('app-version', [AppVersionSettingsController::class, 'update'])->name('app-version.update');
 
         // v13: bir nechta sAdmin - qo'shish, bloklash, olib tashlash
         // Sotuv: arizalar, yangiliklar, aloqa sozlamalari (faqat sAdmin)
@@ -110,6 +261,8 @@ Route::middleware(['auth', 'active'])->group(function () {
         Route::post('sales/videos', [Sales\VideoController::class, 'store'])->name('sales.videos.store');
         Route::post('sales/videos/{video}/toggle', [Sales\VideoController::class, 'toggle'])->whereNumber('video')->name('sales.videos.toggle');
         Route::delete('sales/videos/{video}', [Sales\VideoController::class, 'destroy'])->whereNumber('video')->name('sales.videos.destroy');
+        Route::get('sales/demo', [Sales\DemoController::class, 'index'])->name('sales.demo');
+        Route::post('sales/demo/reset', [Sales\DemoController::class, 'reset'])->middleware('throttle:3,10')->name('sales.demo.reset');
         Route::get('sales/settings', [Sales\SettingsController::class, 'edit'])->name('sales.settings');
         Route::put('sales/settings', [Sales\SettingsController::class, 'update'])->name('sales.settings.update');
 
@@ -139,7 +292,6 @@ Route::middleware(['auth', 'active'])->group(function () {
     Route::get('students/{student}', [StudentController::class, 'show'])->name('students.show');
     Route::get('students/{student}/edit', [StudentController::class, 'edit'])->name('students.edit');
     Route::put('students/{student}', [StudentController::class, 'update'])->name('students.update');
-    Route::post('students/{student}/reset-password', [StudentController::class, 'resetPassword'])->name('students.reset-password');
     Route::post('students/{student}/archive', [StudentController::class, 'archive'])->name('students.archive');
     Route::post('students/{student}/restore', [StudentController::class, 'restore'])->name('students.restore');
     // v13: yuqori paneldagi eslatmalar qo'ng'iroqchasi (har 15 soniyada so'raladi) va faolsizlantirish
@@ -170,6 +322,8 @@ Route::middleware(['auth', 'active'])->group(function () {
     Route::post('groups/{group}/attendance/past', [AttendanceController::class, 'editPast'])->name('attendance.past.store');
 
     // Yordam (AI): barcha panel foydalanuvchilari uchun
+    Route::get('qollanma', [\App\Http\Controllers\GuideController::class, 'index'])->name('guides.index');
+    Route::get('qollanma/{guide}', [\App\Http\Controllers\GuideController::class, 'show'])->whereNumber('guide')->name('guides.show');
     Route::get('help', [HelpController::class, 'index'])->name('help.index');
     Route::post('help', [HelpController::class, 'send'])->middleware('throttle:30,1')->name('help.send');
     Route::delete('help/{chat}', [HelpController::class, 'destroy'])->name('help.destroy');

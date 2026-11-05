@@ -16,7 +16,7 @@ class Lead extends Model
     public const CONVERTED = 'converted';
     public const CANCELLED = 'cancelled';
 
-    protected $fillable = ['branch_id', 'name', 'phone', 'phone2', 'address', 'lead_source_id', 'status', 'is_repeat', 'student_id', 'created_by', 'ai_analysis', 'ai_analyzed_at'];
+    protected $fillable = ['branch_id', 'name', 'phone', 'phone2', 'address', 'lead_source_id', 'status', 'is_repeat', 'student_id', 'created_by', 'ai_analysis', 'ai_analyzed_at', 'consent_at', 'consent_version'];
 
     protected function casts(): array
     {

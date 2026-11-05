@@ -8,6 +8,7 @@ use App\Models\Group;
 use App\Models\Lead;
 use App\Models\User;
 use App\Models\Concerns\BranchScope;
+use App\Support\CenterContext;
 
 /**
  * v9: barcha filiallar bo'yicha xodimlar ro'yxati (faqat ism, rol, filial, telefon).
@@ -29,7 +30,14 @@ class StaffDirectoryController extends Controller
     {
         $this->authorize('staff.view_all_branches');
 
-        $staff = User::whereIn('role', [Role::SAdmin, Role::Admin, Role::Manager, Role::Operator, Role::Teacher])
+        // Markaz izolyatsiyasi: User modelida global scope yo'q — o'z markazi bilan cheklanadi (barcha FILIALLAR ko'rinadi, boshqa MARKAZLAR emas).
+        // Platforma sAdmin'i faqat sAdminning o'ziga ko'rinadi.
+        $centerId = CenterContext::id();
+        $viewerIsSadmin = auth()->user()->role === Role::SAdmin;
+
+        $staff = User::whereIn('role', $viewerIsSadmin ? [Role::SAdmin, Role::Admin, Role::Manager, Role::Operator, Role::Teacher] : [Role::Admin, Role::Manager, Role::Operator, Role::Teacher])
+            ->when($centerId === 0, fn ($q) => $q->whereRaw('1 = 0'))
+            ->when($centerId, fn ($q) => $q->where('users.center_id', $centerId))
             ->where('status', 'active')
             ->with('branch:id,name')
             ->orderBy('branch_id')

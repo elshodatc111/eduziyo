@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers;
 
-use App\Http\Middleware\EnsureUserIsActive;
 use App\Models\NewsPost;
 use App\Models\PlatformSetting;
 use App\Models\SalesApplication;
@@ -14,41 +13,37 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 
 /**
- * EDUZIYO sotuv sahifasi (ochiq). `/` — mehmon uchun sotuv sahifasi, kirgan foydalanuvchi uchun boshqaruv paneli
- * (shuning uchun eski `route('dashboard')` va barcha yo'naltirishlar o'zgarishsiz ishlaydi).
+ * EDUZIYO sotuv sahifasi (ochiq). `/` da doim ko'rinadi (kirgan foydalanuvchiga ham); boshqaruv paneli — `/dashboard`.
  */
 class LandingController extends Controller
 {
-    public const CONTACT_KEYS = ['contact_instagram', 'contact_telegram', 'contact_email', 'contact_phone1', 'contact_phone2', 'contact_address', 'tariff_text', 'demo_text', 'demo_login', 'demo_password'];
+    public const CONTACT_KEYS = ['contact_instagram', 'contact_telegram', 'contact_email', 'contact_phone1', 'contact_phone2', 'contact_address', 'tariff_text', 'demo_text'];
 
     public function index(Request $request)
     {
-        if ($request->user()) {
-            // Kirgan foydalanuvchi: avvalgidek panel (faollik tekshiruvi bilan)
-            return app(EnsureUserIsActive::class)->handle($request, function ($r) {
-                return app('router')->prepareResponse($r, app()->call([app(DashboardController::class), 'index']));
-            });
-        }
-
         return view('landing.index', [
             'c' => PlatformSetting::many(self::CONTACT_KEYS),
             'news' => NewsPost::published()->orderByDesc('published_at')->limit(3)->get(['id', 'title', 'slug', 'excerpt', 'published_at', 'image_path']),
             'tariffs' => Tariff::where('is_active', true)->orderBy('sort_order')->get(),
             'videos' => SalesVideo::where('is_active', true)->orderBy('sort_order')->orderBy('id')->get(),
             'applied' => session('applied', false),
+            'demoRoles' => app(\App\Services\DemoService::class)->available() ? \App\Services\DemoService::ROLES : [],
         ]);
     }
 
     public function apply(Request $request): RedirectResponse
     {
-        $back = redirect()->to(route('dashboard').'#ariza');
+        $back = redirect()->to(route('landing').'#ariza');
 
         // Botlardan himoya: yashirin maydon to'lgan bo'lsa jimgina "yuborildi" deymiz
         if ($request->filled('website')) {
             return $back->with('applied', true);
         }
 
+        $legal = app(\App\Services\LegalService::class);
+
         $data = $request->validate([
+            'consent' => $legal->consentRequired() ? ['accepted'] : ['nullable'],
             'name' => ['required', 'string', 'max:120'],
             'center_name' => ['required', 'string', 'max:160'],
             'phone' => ['required', 'string', new UzPhone],
@@ -63,14 +58,21 @@ class LandingController extends Controller
             'utm_campaign' => ['nullable', 'string', 'max:100'],
         ], [], [
             'name' => 'Ism familiya', 'center_name' => "O'quv markaz nomi", 'phone' => 'Telefon', 'city' => 'Shahar',
-            'branches_count' => 'Filiallar soni', 'students_count' => "O'quvchilar soni", 'message' => 'Izoh',
+            'branches_count' => 'Filiallar soni', 'students_count' => "O'quvchilar soni", 'message' => 'Izoh', 'consent' => 'Rozilik',
         ]);
 
         // Takror yuborishdan himoya: oxirgi 24 soatda shu raqamdan hali ochiq ariza bo'lsa, yangisi yaratilmaydi
         $exists = SalesApplication::where('phone', $data['phone'])->where('status', 'new')->where('created_at', '>=', now()->subDay())->exists();
 
         if (! $exists) {
-            SalesApplication::create(array_merge($data, ['wants_demo' => $request->boolean('wants_demo'), 'ip' => $request->ip()]));
+            $seen = array_values(array_intersect((array) $request->session()->get('demo_roles_seen', []), array_keys(\App\Services\DemoService::ROLES)));
+            $application = SalesApplication::create(array_merge(collect($data)->except('consent')->all(), $legal->formConsent(), [
+                'wants_demo' => $request->boolean('wants_demo'), 'ip' => $request->ip(),
+                'demo_roles' => $seen ? implode(',', $seen) : null,
+                'telegram_token' => \Illuminate\Support\Str::lower(\Illuminate\Support\Str::random(24)),
+            ]));
+            $back = $back->with('tg_verify_link', app(\App\Services\Telegram\TelegramClient::class)->deepLink('app_'.$application->telegram_token));
+            app(\App\Services\Telegram\TelegramNotifier::class)->toSadmins("🆕 Yangi ariza (Telegram tasdig'isiz)\n".e($data['center_name']).' — '.e($data['name']).', '.e($data['phone']));
             Log::info('Yangi sotuv arizasi', ['center' => $data['center_name']]);
         }
 

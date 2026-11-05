@@ -80,7 +80,7 @@ class SmsTest extends TestCase
         $this->enable();
         [$student] = app(StudentService::class)->create(['name' => 'Ali', 'phone' => '+998 90 123 4567'], $this->admin);
 
-        app(StudentService::class)->resetPassword($student);
+        app(\App\Services\SmsNotifier::class)->notify('password_reset', $student, ['login' => $student->username, 'password' => 'abc12345']);
         $this->assertSame(0, SmsMessage::where('template_key', 'password_reset')->count());   // standart holatda o'chiq
 
         $this->put('/sms/settings', [
@@ -88,7 +88,7 @@ class SmsTest extends TestCase
             'templates' => ['password_reset' => ['enabled' => 1, 'body' => 'Yangi parol: {password}'], 'payment_received' => ['body' => 'Matn {amount}']],
         ])->assertRedirect();
 
-        app(StudentService::class)->resetPassword($student);
+        app(\App\Services\SmsNotifier::class)->notify('password_reset', $student, ['login' => $student->username, 'password' => 'abc12345']);
         $this->assertSame(1, SmsMessage::where('template_key', 'password_reset')->count());
         $this->assertStringStartsWith('Yangi parol: ', SmsMessage::where('template_key', 'password_reset')->value('message'));
 

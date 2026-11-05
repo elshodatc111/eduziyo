@@ -3,8 +3,8 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>@yield('title', 'Murojaat') · {{ isset($branch) ? $branch->name : 'Edunova' }}</title>
-    <link rel="icon" href="{{ asset('favicon.svg') }}" type="image/svg+xml">
+    <title>@yield('title', 'Murojaat') · {{ isset($branch) ? $branch->name : \App\Support\Brand::name() }}</title>
+    @include('partials.favicon')
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     @if (isset($branch))
         <style>:root { --brand-public: {{ $branch->effectiveBrandColor() }}; }</style>
@@ -24,7 +24,7 @@
     @else
         <div class="mb-6 flex items-center justify-center gap-3">
             <x-logo />
-            <span class="text-xl font-extrabold tracking-tight text-ink-900">Edunova</span>
+            <span class="text-xl font-extrabold tracking-tight text-ink-900">{{ \App\Support\Brand::name() }}</span>
         </div>
     @endif
     @yield('content')
@@ -32,7 +32,7 @@
         @if (isset($branch))
             © {{ date('Y') }} {{ $branch->name }}
         @else
-            © {{ date('Y') }} Edunova CRM
+            © {{ date('Y') }} {{ \App\Support\Brand::name() }}
         @endif
     </p>
 </div>

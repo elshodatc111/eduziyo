@@ -82,15 +82,25 @@ class AttendanceService
      */
     private function notifyAbsentees(Group $group, array $studentIds, array $present): void
     {
-        $branch = Branch::find($group->branch_id);
-
-        if (! $branch || ! $branch->sms_auto_absent) {
-            return;
-        }
-
         $absentIds = array_diff($studentIds, $present);
 
         if ($absentIds === []) {
+            return;
+        }
+
+        // Telegram (bepul): ota-ona/o'quvchi botga ulangan bo'lsa — SMS sozlamasidan mustaqil xabar
+        try {
+            $family = app(\App\Services\Telegram\TelegramFamilyService::class);
+            foreach (User::whereIn('id', $absentIds)->get() as $absent) {
+                $family->notifyAbsent($absent, $group);
+            }
+        } catch (\Throwable $e) {
+            report($e);
+        }
+
+        $branch = Branch::find($group->branch_id);
+
+        if (! $branch || ! $branch->sms_auto_absent) {
             return;
         }
 

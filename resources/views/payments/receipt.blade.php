@@ -3,8 +3,8 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Chek №{{ $payment->id }} · Edunova</title>
-    <link rel="icon" href="{{ asset('favicon.svg') }}" type="image/svg+xml">
+    <title>Chek №{{ $payment->id }} · {{ \App\Support\Brand::name() }}</title>
+    @include('partials.favicon')
     @vite(['resources/css/app.css'])
     @if ($format === '80mm')
         <style>

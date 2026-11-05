@@ -13,7 +13,7 @@ class V13SidebarMenuTest extends TestCase
 
     public function test_sadmin_sees_all_sections(): void
     {
-        $this->actingAs($this->user(Role::SAdmin))->get('/')->assertOk()
+        $this->actingAs($this->user(Role::SAdmin))->get('/dashboard')->assertOk()
             ->assertSee("O'quv jarayoni")->assertSee('Murojaat va aloqa')->assertSee('Moliya')
             ->assertSee('Tahlil')->assertSee('Boshqaruv')->assertSee('Tizim holati');
     }
@@ -22,7 +22,7 @@ class V13SidebarMenuTest extends TestCase
     {
         $teacher = $this->user(Role::Teacher, null, ['attendance.view', 'attendance.take']);
 
-        $this->actingAs($teacher)->get('/')->assertOk()
+        $this->actingAs($teacher)->get('/dashboard')->assertOk()
             ->assertSee('Bugungi davomad')
             ->assertDontSee('Murojaat va aloqa')
             ->assertDontSee('Tizim holati')
@@ -33,7 +33,7 @@ class V13SidebarMenuTest extends TestCase
     {
         $manager = $this->user(Role::Manager, null, ['payments.view']);
 
-        $this->actingAs($manager)->get('/')->assertOk()
+        $this->actingAs($manager)->get('/dashboard')->assertOk()
             ->assertSee("To'lovlar")->assertDontSee('Ish haqi');
     }
 }

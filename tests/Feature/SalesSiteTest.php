@@ -21,23 +21,27 @@ class SalesSiteTest extends TestCase
 
     public function test_guest_sees_landing_and_logged_in_user_sees_dashboard(): void
     {
-        $this->get('/')->assertOk()->assertSee('Ariza qoldiring')->assertSee('Tariflar');
+        $this->get('/')->assertOk()->assertSee('Ariza qoldiring')->assertSee('Tariflar')->assertSee('Kirish');
+        $this->get('/dashboard')->assertRedirect(route('login'));
 
+        // Kirgan foydalanuvchi ham sotuv sahifasini ko'ra oladi (panelga o'tish tugmasi bilan); panel /dashboard da
         $b = $this->branch();
-        $this->actingAs($this->user(Role::Admin, $b))->get('/')->assertOk()->assertDontSee('Ariza qoldiring');
+        $admin = $this->user(Role::Admin, $b);
+        $this->actingAs($admin)->get('/')->assertOk()->assertSee('Ariza qoldiring')->assertSee("Panelga o'tish", false);
+        $this->actingAs($admin)->get('/dashboard')->assertOk()->assertDontSee('Ariza qoldiring')->assertSee('Sayt');
     }
 
     public function test_blocked_user_on_root_is_logged_out(): void
     {
         $u = $this->user(Role::Admin, $this->branch());
         $u->update(['status' => \App\Enums\UserStatus::Blocked]);
-        $this->actingAs($u)->get('/')->assertRedirect(route('login'));
+        $this->actingAs($u)->get('/dashboard')->assertRedirect(route('login'));
     }
 
     public function test_application_is_saved_with_utm(): void
     {
         $this->post(route('landing.apply'), $this->valid(['utm_source' => 'instagram', 'utm_campaign' => 'noyabr']))
-            ->assertRedirect(route('dashboard').'#ariza')->assertSessionHas('applied', true);
+            ->assertRedirect(route('landing').'#ariza')->assertSessionHas('applied', true);
 
         $a = SalesApplication::firstOrFail();
         $this->assertSame('new', $a->status);

@@ -25,4 +25,16 @@ return [
         'credentials' => env('FIREBASE_CREDENTIALS_PATH', storage_path('app/firebase-service-account.json')),
     ],
 
+    // EDUZIYO E8: Telegram bot (webhook). Token va maxfiy sarlavha faqat .env da.
+    'telegram' => [
+        'token' => env('TELEGRAM_BOT_TOKEN'),
+        'username' => env('TELEGRAM_BOT_USERNAME'),
+        'webhook_secret' => env('TELEGRAM_WEBHOOK_SECRET'),
+    ],
+
+    // Zaxira nusxa shifrlash: serverda faqat OCHIQ kalit turadi; yopiq kalit sAdmin'da (serverda emas).
+    'backup' => [
+        'public_key_path' => env('BACKUP_PUBLIC_KEY_PATH', storage_path('app/backup-public.pem')),
+    ],
+
 ];
