@@ -383,3 +383,5 @@ API_DOC.md         To'liq mobil API hujjati (v11)
 - ✅ v11: mobil ilova (Flutter) uchun to'liq API — xodimlar bo'limi (Varonka, Kassa, Moliya ko'rish, Hodimlar, SMS, boshqa filial, guruhga biriktirish), o'quvchi uchun "Mening guruhlarim" va umumiy davomat tarixi, to'liq push bildirishnoma (Firebase/FCM) va sAdmin uchun yangi Bildirishnomalar bo'limi, sAdmin mobil filial almashtirish (`X-Branch-Id`), to'liq `API_DOC.md`
 
 Keyingi mumkin bo'lgan takomillashtirishlar: **1Call.uz qo'ng'iroq-markazi bilan webhook integratsiyasi (shartnoma jarayonida)**, SMS matnlarini AI bilan tayyorlash, o'quvchi ketib qolish xavfini baholash, onlayn (karta) to'lov, ikki bosqichli kirish (2FA), Flutter mobil ilovaning o'zi (bu loyihada faqat server tomoni — API — tayyorlanadi).
+#   e d u z i y o  
+ 
