@@ -2,6 +2,10 @@
 
 > **EDUZIYO E0 (2026-11-06):** Edunova v13 ustiga ko'p markazli (multi-tenant) asos qo'yildi: `centers` jadvali, barcha jadvallarda `center_id`, avtomatik markaz filtri (`CenterScope`), yangi **Direktor** roli, sAdmin markaz tanlagichi, `php artisan tenancy:audit`. Texnik topshiriq: loyiha hujjatlari `claude/16` va `claude/17`.
 >
+> **EDUZIYO E6 + E7d (2026-11-10):** **o'quvchi veb-kabineti** (`/cabinet`), **PWA** (o'rnatiladigan ilova), **ommaviy demo** (sotuv sahifasida har rol uchun bir bosishda kirish, har tun 03:10 da tiklanadi). Yangilash: `php artisan migrate && php artisan demo:reset && php artisan optimize:clear`.
+>
+> **EDUZIYO E7c (2026-11-09):** sotuv sahifasi **doim `/` da** (kirganlar uchun ham), boshqaruv paneli **`/dashboard`** da; sahifa yangi animatsion dizaynda. Migratsiya kerak emas: `php artisan optimize:clear`.
+>
 > **EDUZIYO E7b (2026-11-08):** 3 ta **tarif** (sAdmin → Sotuv → Tariflar), **demo** bo'limi, yangiliklarga **rasm va YouTube**, **Videolar**. Yangilash: `php artisan migrate`. Rasmlar `public/uploads/` ga yoziladi (papka yozishga ruxsatli bo'lishi kerak). Tarif narxlarini sAdmin kiritadi.
 >
 > **EDUZIYO E7 (2026-11-07):** ochiq **sotuv sahifasi** (`/`), ariza shakli, sAdmin uchun **Sotuv** bo'limi (Arizalar, Yangiliklar, Sotuv sozlamalari). Yangilash: `php artisan migrate`. Aloqa ma'lumotlarini sAdmin bilan kirib *Sotuv → Sotuv sozlamalari* da kiriting.
