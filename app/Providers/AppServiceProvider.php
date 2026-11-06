@@ -25,8 +25,11 @@ class AppServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
-        // Cloudflare/HTTPS orqasida havolalar va aktivlar https bo'lsin (APP_URL https:// bilan boshlansa)
-        if (str_starts_with((string) config('app.url'), 'https://')) {
+        // Cloudflare/HTTPS orqasida havolalar https bo'lsin — faqat asosiy domen (APP_URL) orqali kirilganda.
+        // LAN IP orqali (http://192.168...) kirilganda majburlanmaydi, aks holda CSS/JS yuklanmay qoladi.
+        $appUrl = (string) config('app.url');
+        if (str_starts_with($appUrl, 'https://') && ! $this->app->runningInConsole()
+            && request()->getHost() === parse_url($appUrl, PHP_URL_HOST)) {
             URL::forceScheme('https');
         }
 
