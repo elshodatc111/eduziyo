@@ -30,7 +30,24 @@ class ModemController extends Controller
 
     public function scan(ModemScanner $scanner): RedirectResponse
     {
-        $r = $scanner->scan();
+        // Docker'da veb-konteynerda USB port ko'rinmaydi: ishchi ishlayotgan bo'lsa, qidiruvni o'sha bajaradi
+        if (ModemWorker::alive()) {
+            $stamp = (string) microtime(true);
+            Cache::put(ModemWorker::SCAN_REQUEST_KEY, $stamp, 60);
+            $r = null;
+            for ($i = 0; $i < 40 && ! $r; $i++) {
+                usleep(500_000);
+                $done = Cache::get(ModemWorker::SCAN_DONE_KEY);
+                if (is_array($done) && ($done['req'] ?? null) === $stamp) {
+                    $r = ['found' => (int) $done['found']];
+                }
+            }
+            if (! $r) {
+                return back()->with('error', 'Modem ishchisi 20 soniyada javob bermadi. `docker logs eduziyo_modem` ni tekshiring.');
+            }
+        } else {
+            $r = $scanner->scan();
+        }
 
         return back()->with('success', $r['found'] > 0 ? "Topilgan modemlar: {$r['found']}." : "Modem topilmadi. Quyidagi diagnostika jadvaliga qarang.");
     }
@@ -64,7 +81,22 @@ class ModemController extends Controller
         $data = $request->validate(['phone' => ['required', 'string', new UzPhone]], [], ['phone' => 'Telefon']);
         abort_unless($modem->device, 422);
 
-        $r = $sender->send($modem, Format::normalizePhone($data['phone']) ?? $data['phone'], \App\Support\Brand::name().": modem sinovi ".now()->format('H:i'));
+        $phone = Format::normalizePhone($data['phone']) ?? $data['phone'];
+        $text = \App\Support\Brand::name().": modem sinovi ".now()->format('H:i');
+
+        if (ModemWorker::alive()) {
+            // Docker'da veb-konteynerda USB port yo'q: yuborishni modem ishchisi bajaradi, natijani kutamiz
+            $token = bin2hex(random_bytes(8));
+            Cache::put(ModemWorker::testKey($modem->id), ['token' => $token, 'phone' => $phone, 'text' => $text], 60);
+            $r = null;
+            for ($i = 0; $i < 60 && ! $r; $i++) {
+                usleep(500_000);
+                $r = Cache::pull(ModemWorker::testResultKey($token));
+            }
+            $r ??= ['ok' => false, 'error' => 'Modem ishchisi 30 soniyada javob bermadi'];
+        } else {
+            $r = $sender->send($modem, $phone, $text);
+        }
         AuditLog::record('sms.modem_test', null, $modem->name().': '.($r['ok'] ? 'yuborildi' : 'xato: '.$r['error']));
 
         return $r['ok'] ? back()->with('success', 'Sinov SMS yuborildi.') : back()->with('error', 'Yuborilmadi: '.$r['error']);

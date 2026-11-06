@@ -16,6 +16,18 @@ class ModemWorker
 {
     public const HEARTBEAT_KEY = 'sms.modem_worker_seen';
     public const SCAN_EVERY = 60;
+    public const SCAN_REQUEST_KEY = 'sms.modem_scan_request';
+    public const SCAN_DONE_KEY = 'sms.modem_scan_done';
+
+    public static function testKey(int $modemId): string
+    {
+        return 'sms.modem_test.'.$modemId;
+    }
+
+    public static function testResultKey(string $token): string
+    {
+        return 'sms.modem_test_result.'.$token;
+    }
 
     /** Xabarlar orasidagi pauza (soniya). Testlarda o'chiriladi. @var callable(int):void */
     public static $pauser = null;
@@ -44,12 +56,20 @@ class ModemWorker
     {
         Cache::put(self::HEARTBEAT_KEY, now()->timestamp, now()->addDay());
 
+        // Veb-panelda (qurilmasiz konteyner) bosilgan «Qayta qidirish» — port faqat shu ishchida ko'rinadi
+        $scanRequest = Cache::pull(self::SCAN_REQUEST_KEY);
+
         $scanned = false;
-        if ($forceScan || time() - $this->lastScan >= self::SCAN_EVERY) {
-            $this->scanner->scan();
+        if ($forceScan || $scanRequest || time() - $this->lastScan >= self::SCAN_EVERY) {
+            $report = $this->scanner->scan();
             $this->lastScan = time();
             $scanned = true;
+            if ($scanRequest) {
+                Cache::put(self::SCAN_DONE_KEY, ['req' => $scanRequest, 'found' => (int) ($report['found'] ?? 0)], 120);
+            }
         }
+
+        $this->handleTestRequests();
 
         $sent = $failed = 0;
         $rows = SmsOutbox::where('status', 'queued')->orderBy('id')->limit(30)->get();
@@ -91,6 +111,19 @@ class ModemWorker
         $this->dispatcher->run();   // xato/olinmagan xabarlar -> Eskiz
 
         return ['sent' => $sent, 'failed' => $failed, 'scanned' => $scanned];
+    }
+
+    /** Veb-paneldagi «Sinov SMS» so'rovlari: yuborish shu ishchida bajariladi, natija keshga qo'yiladi. */
+    private function handleTestRequests(): void
+    {
+        foreach (SmsModem::query()->whereNotNull('device')->get() as $modem) {
+            $req = Cache::pull(self::testKey($modem->id));
+            if (! is_array($req) || empty($req['token'])) {
+                continue;
+            }
+            $r = $this->sender->send($modem, (string) $req['phone'], (string) $req['text']);
+            Cache::put(self::testResultKey((string) $req['token']), $r, 60);
+        }
     }
 
     private function countDaily(SmsModem $modem): void

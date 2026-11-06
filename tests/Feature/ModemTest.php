@@ -194,6 +194,27 @@ class ModemTest extends TestCase
         $this->assertFalse($m->fresh()->enabled);
     }
 
+    public function test_worker_handles_scan_and_test_requests_from_web_panel(): void
+    {
+        // Docker: veb-konteynerda port yo'q — panel so'rovni keshga qo'yadi, ishchi bajaradi
+        $this->ports->devices = ['/dev/ttyUSB1' => FakeModemPorts::modem('860000000000001')];
+        $worker = app(ModemWorker::class);
+        $worker->tick(true);
+        $modem = SmsModem::firstOrFail();
+
+        Cache::put(ModemWorker::SCAN_REQUEST_KEY, 'req-1', 60);
+        Cache::put(ModemWorker::testKey($modem->id), ['token' => 'tok', 'phone' => '+998 90 123 4567', 'text' => 'Sinov'], 60);
+
+        $worker->tick();
+
+        $done = Cache::get(ModemWorker::SCAN_DONE_KEY);
+        $this->assertSame('req-1', $done['req']);
+        $this->assertSame(1, $done['found']);
+        $this->assertTrue(Cache::get(ModemWorker::testResultKey('tok'))['ok']);
+        $this->assertCount(1, FakeModemPorts::$sent);
+        $this->assertNull(Cache::get(ModemWorker::testKey($modem->id)), 'so\'rov bir marta bajariladi');
+    }
+
     public function test_only_sadmin_can_manage_modems(): void
     {
         $m = SmsModem::create(['imei' => '1', 'status' => 'ready']);
