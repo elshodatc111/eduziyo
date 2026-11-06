@@ -12,10 +12,7 @@ class SerialPort implements ModemPort
 
     public function __construct(private string $device, int $baud = 115200)
     {
-        exec('stty -F '.escapeshellarg($device).' '.(int) $baud.' raw -echo -echoe -echok -hupcl clocal cread cs8 -parenb -cstopb min 0 time 0 2>&1', $out, $rc);
-        if ($rc !== 0) {
-            throw new RuntimeException("stty xatosi ({$device}): ".implode(' ', $out));
-        }
+        self::configure($device, (int) $baud);
 
         $fp = @fopen($device, 'r+b');
         if (! $fp) {
@@ -23,6 +20,38 @@ class SerialPort implements ModemPort
         }
         stream_set_blocking($fp, false);
         $this->fp = $fp;
+    }
+
+    /**
+     * Port parametrlarini o'rnatadi. Ba'zi USB-serial drayverlari (masalan ZTE `option`) hamma bayroqni
+     * qabul qilmaydi va `stty` «unable to perform all requested operations» deydi — shuning uchun
+     * to'liq to'plamdan kamroq to'plamlarga ketma-ket tushiladi; hech biri bo'lmasa ham port
+     * o'qilsa davom etamiz (modem AT ga javob bersa — ishlayveradi).
+     */
+    private static function configure(string $device, int $baud): void
+    {
+        $dev = escapeshellarg($device);
+        $sets = [
+            "{$baud} raw -echo -echoe -echok -hupcl clocal cread cs8 -parenb -cstopb min 0 time 0",
+            "{$baud} raw -echo clocal cread cs8 min 0 time 0",
+            'raw -echo clocal cread min 0 time 0',
+            'raw -echo',
+        ];
+        $last = '';
+        foreach ($sets as $set) {
+            $out = [];
+            exec("stty -F {$dev} {$set} 2>&1", $out, $rc);
+            if ($rc === 0) {
+                return;
+            }
+            $last = implode(' ', $out);
+        }
+
+        $out = [];
+        exec("stty -F {$dev} 2>&1", $out, $rc);
+        if ($rc !== 0) {
+            throw new RuntimeException("stty xatosi ({$device}): ".$last);
+        }
     }
 
     public function write(string $data): void
