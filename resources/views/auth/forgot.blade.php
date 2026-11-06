@@ -9,7 +9,7 @@
         <button class="btn-primary w-full py-3">Kod yuborish</button>
     </form>
     <div class="mt-5 rounded-xl border border-ink-200 p-3 text-xs text-ink-500 dark:border-ink-800">
-        Telegram ulanmaganmi? @if ($botLink)<a class="font-semibold text-brand-600" href="{{ $botLink }}" target="_blank" rel="noopener">Botni oching</a>@else Botni oching@endif, <b>/parol</b> buyrug'ini yuboring va telefon raqamingizni tasdiqlang.
+        Telegram ulanmaganmi? @if ($botLink)<a class="font-semibold text-brand-600" href="{{ $botLink }}" target="_blank" rel="noopener">Botni oching</a>@else Botni oching @endif, <b>/parol</b> buyrug'ini yuboring va telefon raqamingizni tasdiqlang.
     </div>
     <a href="{{ route('login') }}" class="mt-4 inline-block text-sm font-semibold text-brand-600">← Kirish sahifasi</a>
 @endsection
