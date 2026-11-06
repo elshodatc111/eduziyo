@@ -15,10 +15,22 @@ abstract class TestCase extends BaseTestCase
         parent::setUp();
         \App\Support\Brand::flush();   // brend keshi testlar orasida aralashmasin
         \App\Support\IntegrationSettings::flush();
-        \App\Services\Sms\Modem\ModemWorker::$pauser = fn (int $s) => null;   // modem pauzasi testni sekinlashtirmasin
     }
 
     /** Filial uchun guruh ochishga kerak bo'lgan ma'lumotnomalar. */
+    /** Eskiz orqali yuborish faqat sAdmin tasdiqlagan matnlarga ruxsat beradi: testlarda hammasini tasdiqlaydi. */
+    protected function approveSmsTemplates(): void
+    {
+        \App\Services\Sms\SmsPlatformTemplates::ensureSeeded();
+        \App\Models\SmsPlatformTemplate::query()->update(['is_approved' => true, 'approved_at' => now()]);
+    }
+
+    /** Tasdiqlangan shablonga mos tayyor matn (payment_received). */
+    protected function approvedSmsText(string $tag = 'Ali'): string
+    {
+        return "Hurmatli {$tag}, 5 000 so'm to'lovingiz qabul qilindi. Balansingiz: 0.";
+    }
+
     protected function catalog(Branch $branch): array
     {
         $teacher = $this->user(Role::Teacher, $branch, ['attendance.view', 'attendance.take']);

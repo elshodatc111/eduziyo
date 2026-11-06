@@ -23,8 +23,7 @@ class CenterLifecycle
     /** @return array<string,int> */
     public function run(bool $dryRun = false): array
     {
-        $stats = ['reminders' => 0, 'read_only' => 0, 'warned' => 0, 'deleted' => 0, 'invoices' => 0];
-        $stats['invoices'] = $dryRun ? 0 : app(SmsInvoiceService::class)->expireOld();
+        $stats = ['reminders' => 0, 'read_only' => 0, 'warned' => 0, 'deleted' => 0];
 
         $centers = Center::where('is_demo', false)->whereIn('status', [CenterStatus::Active, CenterStatus::ReadOnly])->whereNotNull('tariff_ends_at')->get();
 

@@ -11,11 +11,9 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
-/** sAdmin: Telegram bot (token, nom, webhook) va USB modem parametrlari — `.env` o'rniga shu sahifadan. */
+/** sAdmin: AI, SMS Gateway, Eskiz va Telegram bot sozlamalari — `.env` o'rniga shu sahifadan. */
 class IntegrationController extends Controller
 {
-    public const BAUDS = [9600, 19200, 38400, 57600, 115200, 230400, 460800];
-
     public function index(Request $request, TelegramClient $tg)
     {
         $status = null;
@@ -31,10 +29,15 @@ class IntegrationController extends Controller
             'alertChats' => S::get('telegram_alert_chats'),
             'alertTargets' => count(app(\App\Services\Telegram\TelegramNotifier::class)->sadminChats()),
             'webhookUrl' => S::get('telegram_webhook_url') ?: rtrim((string) config('app.url'), '/').'/api/telegram/webhook',
-            'modem' => ['ports' => S::get('modem_ports'), 'baud' => S::int('modem_baud', 115200), 'pause_min' => S::int('modem_pause_min', 3),
-                'pause_max' => S::int('modem_pause_max', 8), 'daily_limit' => S::int('modem_daily_limit', 0)],
-            'bauds' => self::BAUDS,
-            'detected' => S::modemPorts(),
+            'ai' => [
+                'primary' => S::get('ai_primary') === 'anthropic' ? 'anthropic' : 'openai',
+                'openai_mask' => S::mask('openai_key'), 'openai_env' => S::fromEnv('openai_key') && ! S::has('openai_key'), 'openai_model' => S::get('openai_model'),
+                'anthropic_mask' => S::mask('anthropic_key'), 'anthropic_env' => S::fromEnv('anthropic_key') && ! S::has('anthropic_key'), 'anthropic_model' => S::get('anthropic_model'),
+                'active' => app(\App\Services\OpenAiService::class)->providers(),
+            ],
+            'eskiz' => ['email' => S::get('eskiz_email'), 'mask' => S::mask('eskiz_password'), 'env' => S::fromEnv('eskiz_password') && ! S::has('eskiz_password'), 'from' => S::get('eskiz_from')],
+            'gateway' => ['url' => S::get('gateway_url'), 'key_mask' => S::mask('gateway_key'), 'key_env' => S::fromEnv('gateway_key') && ! S::has('gateway_key'),
+                'secret_mask' => S::mask('gateway_secret'), 'secret_env' => S::fromEnv('gateway_secret') && ! S::has('gateway_secret'), 'webhook' => route('sms-gateway.webhook')],
         ]);
     }
 
@@ -126,31 +129,114 @@ class IntegrationController extends Controller
         return back()->with($ok ? 'success' : 'error', $ok ? 'Webhook olib tashlandi (bot xabar olmaydi).' : "Olib tashlab bo'lmadi.");
     }
 
-    public function saveModem(Request $request): RedirectResponse
+    public function saveAi(Request $request): RedirectResponse
     {
         $d = $request->validate([
-            'ports' => ['required', 'string', 'max:200', function ($attr, $value, $fail) {
-                foreach (array_filter(array_map('trim', explode(',', $value))) as $g) {
-                    if (! preg_match('~^/dev/[A-Za-z0-9_*?\[\]-]+$~', $g)) {
-                        $fail("Port yo'li noto'g'ri: {$g}. Faqat /dev/ichidagi qurilma (masalan /dev/ttyUSB*) ruxsat etiladi.");
-                    }
-                }
-            }],
-            'baud' => ['required', 'integer', 'in:'.implode(',', self::BAUDS)],
-            'pause_min' => ['required', 'integer', 'between:0,120'],
-            'pause_max' => ['required', 'integer', 'between:0,300', 'gte:pause_min'],
-            'daily_limit' => ['required', 'integer', 'between:0,100000'],
-        ], ['pause_max.gte' => "Eng uzun pauza eng qisqasidan kam bo'lmasin."], [
-            'ports' => 'Port', 'baud' => 'Tezlik', 'pause_min' => 'Eng qisqa pauza', 'pause_max' => 'Eng uzun pauza', 'daily_limit' => 'Kunlik chegara',
-        ]);
+            'primary' => ['required', 'in:openai,anthropic'],
+            'openai_key' => ['nullable', 'string', 'max:300', 'regex:/^sk-[A-Za-z0-9_\-]{20,}$/'],
+            'openai_model' => ['nullable', 'string', 'max:80', 'regex:/^[A-Za-z0-9._:-]+$/'],
+            'anthropic_key' => ['nullable', 'string', 'max:300', 'regex:/^sk-ant-[A-Za-z0-9_\-]{20,}$/'],
+            'anthropic_model' => ['nullable', 'string', 'max:80', 'regex:/^[A-Za-z0-9._:-]+$/'],
+        ], [
+            'openai_key.regex' => "OpenAI kaliti «sk-...» bilan boshlanishi kerak.",
+            'anthropic_key.regex' => "Claude kaliti «sk-ant-...» bilan boshlanishi kerak.",
+        ], ['openai_key' => 'OpenAI kaliti', 'anthropic_key' => 'Claude kaliti', 'openai_model' => 'OpenAI modeli', 'anthropic_model' => 'Claude modeli']);
 
-        S::set('modem_ports', trim($d['ports']));
-        S::set('modem_baud', (string) $d['baud']);
-        S::set('modem_pause_min', (string) $d['pause_min']);
-        S::set('modem_pause_max', (string) $d['pause_max']);
-        S::set('modem_daily_limit', (string) $d['daily_limit']);
-        AuditLog::record('integration.modem_saved', null, 'Modem sozlamalari saqlandi');
+        S::set('ai_primary', $d['primary']);
+        foreach (['openai', 'anthropic'] as $p) {
+            if (filled($d[$p.'_key'] ?? null)) {
+                S::set($p.'_key', trim($d[$p.'_key']));
+            }
+            S::set($p.'_model', filled($d[$p.'_model'] ?? null) ? trim($d[$p.'_model']) : null);
+        }
+        AuditLog::record('integration.ai_saved', null, 'AI sozlamalari saqlandi (asosiy: '.$d['primary'].')');
 
-        return back()->with('success', "Modem sozlamalari saqlandi. Ishchi (sms:modem-run) keyingi aylanishda qo'llaydi.");
+        return back()->with('success', 'AI sozlamalari saqlandi. «Sinab ko\'rish» tugmasi bilan ishlashini tekshiring.');
+    }
+
+    public function clearAiKey(Request $request): RedirectResponse
+    {
+        $p = $request->validate(['provider' => ['required', 'in:openai,anthropic']])['provider'];
+        S::set($p.'_key', null);
+        AuditLog::record('integration.ai_key_cleared', null, "AI kaliti sahifadan o'chirildi: ".$p);
+
+        return back()->with('success', "Sahifada saqlangan kalit o'chirildi (.env dagisi bo'lsa, o'sha ishlatiladi).");
+    }
+
+    /** Har bir provayderni alohida, markaz hisobini sarflamasdan sinaydi. */
+    public function testAi(Request $request): RedirectResponse
+    {
+        $ai = app(\App\Services\OpenAiService::class);
+        $lines = [];
+        foreach ($ai->providers() as $p) {
+            $r = $ai->probe($p);
+            $lines[] = (\App\Services\OpenAiService::PROVIDERS[$p]).': '.($r === true ? 'ishlayapti ✅' : 'xato ❌ — '.$r);
+        }
+
+        return back()->with($lines ? 'success' : 'error', $lines ? implode(' · ', $lines) : 'Hech qaysi kalit kiritilmagan.');
+    }
+
+    public function saveEskiz(Request $request): RedirectResponse
+    {
+        $d = $request->validate([
+            'email' => ['nullable', 'email', 'max:190'],
+            'password' => ['nullable', 'string', 'max:190'],
+            'from' => ['nullable', 'string', 'max:30', 'regex:/^[A-Za-z0-9 _.-]{3,30}$/'],
+        ], ['from.regex' => 'Yuboruvchi nomi 3–30 ta harf/raqamdan iborat bo\'lsin.'], ['email' => 'Eskiz email', 'password' => 'Eskiz paroli', 'from' => 'Yuboruvchi nomi']);
+
+        $oldEmail = S::get('eskiz_email');
+        $oldPass = S::get('eskiz_password');
+        $oldFrom = S::get('eskiz_from');
+        S::set('eskiz_email', $d['email'] ?? null);
+        if (filled($d['password'] ?? null)) {
+            S::set('eskiz_password', $d['password']);
+        }
+        S::set('eskiz_from', $d['from'] ?? null);
+
+        if (filled(S::get('eskiz_email')) && filled(S::get('eskiz_password'))) {
+            $client = \App\Services\Sms\EskizClient::platform();
+            $check = $client?->check();
+            if ($check !== true) {
+                S::set('eskiz_email', $oldEmail);
+                S::set('eskiz_password', $oldPass);
+                S::set('eskiz_from', $oldFrom);
+                throw ValidationException::withMessages(['password' => (string) $check]);
+            }
+        }
+        AuditLog::record('integration.eskiz_saved', null, 'Platforma Eskiz hisobi saqlandi');
+
+        return back()->with('success', "Platforma Eskiz hisobi saqlandi va tekshirildi. «SMS shablonlar» sahifasida matnlarni tasdiqlang.");
+    }
+
+    public function saveGateway(Request $request): RedirectResponse
+    {
+        $d = $request->validate([
+            'url' => ['required', 'url:https', 'max:190'],
+            'key' => ['nullable', 'string', 'max:200', 'regex:/^sk_sms_[A-Za-z0-9_\-]{10,}$/'],
+            'secret' => ['nullable', 'string', 'max:200'],
+        ], ['url.url' => 'Manzil https:// bilan boshlanishi kerak.', 'key.regex' => "Gateway kaliti «sk_sms_...» ko'rinishida bo'lishi kerak."],
+            ['url' => 'Gateway manzili', 'key' => 'API kaliti', 'secret' => 'Webhook siri']);
+
+        S::set('gateway_url', rtrim($d['url'], '/'));
+        if (filled($d['key'] ?? null)) {
+            S::set('gateway_key', trim($d['key']));
+        }
+        if (filled($d['secret'] ?? null)) {
+            S::set('gateway_secret', trim($d['secret']));
+        }
+        AuditLog::record('integration.gateway_saved', null, 'SMS Gateway sozlamalari saqlandi');
+
+        return back()->with('success', "SMS Gateway sozlamalari saqlandi. «Tekshirish» tugmasi bilan ulanishni sinab ko'ring.");
+    }
+
+    public function testGateway(): RedirectResponse
+    {
+        $client = \App\Services\Sms\SmsGatewayClient::make();
+        if (! $client) {
+            return back()->with('error', "Gateway API kaliti kiritilmagan.");
+        }
+        $r = $client->check();
+
+        return back()->with($r === true ? 'success' : 'error', $r === true ? "Gateway ishlayapti va kalit to'g'ri ✅" : $r);
     }
 }

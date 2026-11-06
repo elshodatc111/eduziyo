@@ -3,8 +3,6 @@
 namespace Tests\Feature;
 
 use App\Enums\Role;
-use App\Models\SmsModem;
-use App\Services\Sms\Modem\ModemWorker;
 use App\Services\SystemWatch;
 use App\Support\IntegrationSettings as S;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -86,18 +84,20 @@ class SystemWatchTest extends TestCase
         $this->assertContains('cron', $w->run()['remind']);
     }
 
-    public function test_modem_worker_down_is_reported_only_when_a_modem_is_enabled(): void
+    public function test_gateway_down_is_reported_only_when_configured(): void
     {
         $this->bot();
         $this->healthy();
         $w = app(SystemWatch::class);
-        $this->assertArrayNotHasKey('modem_worker', $w->problems());
+        \Illuminate\Support\Facades\Http::fake(['*/api/v1/health' => \Illuminate\Support\Facades\Http::response([], 503)]);
+        $this->assertArrayNotHasKey('sms_gateway', $w->problems());   // sozlanmagan
 
-        SmsModem::create(['imei' => '860000000000001', 'enabled' => true, 'status' => 'ready']);
-        $this->assertArrayHasKey('modem_worker', $w->problems());
+        \App\Support\IntegrationSettings::set('gateway_key', 'sk_sms_'.str_repeat('b', 20));
+        $this->assertArrayHasKey('sms_gateway', $w->problems());
 
-        Cache::put(ModemWorker::HEARTBEAT_KEY, now()->timestamp, now()->addDay());
-        $this->assertArrayNotHasKey('modem_worker', $w->problems());
+        \Illuminate\Support\Facades\Http::swap(new \Illuminate\Http\Client\Factory);
+        \Illuminate\Support\Facades\Http::fake(['*/api/v1/health' => \Illuminate\Support\Facades\Http::response(['ok' => true])]);
+        $this->assertArrayNotHasKey('sms_gateway', $w->problems());
     }
 
     public function test_extra_alert_chat_ids_receive_messages_and_are_validated(): void

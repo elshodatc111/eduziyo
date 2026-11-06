@@ -32,7 +32,6 @@ use App\Http\Controllers\SmsController;
 use App\Http\Controllers\StatisticsController;
 use App\Http\Controllers\SuperAdminController;
 use App\Http\Controllers\StaffController;
-use App\Http\Controllers\StaffDirectoryController;
 use App\Http\Controllers\StudentController;
 use App\Http\Controllers\StudentNoteController;
 use App\Http\Controllers\SystemStatusController;
@@ -152,8 +151,9 @@ Route::middleware(['auth', 'active', 'legal', 'demo', 'writable'])->group(functi
         Route::post('direktorlar/{director}/holat', [$dc, 'toggle'])->whereNumber('director')->name('directors.toggle');
         $sc = \App\Http\Controllers\CenterSmsController::class;
         Route::get('sms', [$sc, 'index'])->name('sms');
-        Route::post('sms-faktura/{invoice}/qabul', [$sc, 'accept'])->whereNumber('invoice')->middleware('throttle:10,1')->name('sms.accept');
-        Route::post('sms-faktura/{invoice}/rad', [$sc, 'decline'])->whereNumber('invoice')->name('sms.decline');
+        Route::put('sms/eskiz', [$sc, 'connect'])->middleware('throttle:10,1')->name('sms.eskiz.connect');
+        Route::delete('sms/eskiz', [$sc, 'disconnect'])->name('sms.eskiz.disconnect');
+        Route::post('sms/eskiz/shablonlar', [$sc, 'resync'])->middleware('throttle:6,1')->name('sms.eskiz.resync');
     });
 
     Route::middleware('role:sadmin')->group(function () {
@@ -196,7 +196,12 @@ Route::middleware(['auth', 'active', 'legal', 'demo', 'writable'])->group(functi
         Route::delete('platform/integratsiyalar/telegram', [$ic, 'clearTelegram'])->name('platform.integrations.telegram.clear');
         Route::post('platform/integratsiyalar/webhook', [$ic, 'setWebhook'])->middleware('throttle:6,1')->name('platform.integrations.webhook');
         Route::delete('platform/integratsiyalar/webhook', [$ic, 'removeWebhook'])->middleware('throttle:6,1')->name('platform.integrations.webhook.remove');
-        Route::put('platform/integratsiyalar/modem', [$ic, 'saveModem'])->name('platform.integrations.modem');
+        Route::put('platform/integratsiyalar/ai', [$ic, 'saveAi'])->middleware('throttle:20,1')->name('platform.integrations.ai');
+        Route::delete('platform/integratsiyalar/ai', [$ic, 'clearAiKey'])->name('platform.integrations.ai.clear');
+        Route::post('platform/integratsiyalar/ai/test', [$ic, 'testAi'])->middleware('throttle:6,1')->name('platform.integrations.ai.test');
+        Route::put('platform/integratsiyalar/gateway', [$ic, 'saveGateway'])->middleware('throttle:10,1')->name('platform.integrations.gateway');
+        Route::post('platform/integratsiyalar/gateway/test', [$ic, 'testGateway'])->middleware('throttle:10,1')->name('platform.integrations.gateway.test');
+        Route::put('platform/integratsiyalar/eskiz', [$ic, 'saveEskiz'])->middleware('throttle:10,1')->name('platform.integrations.eskiz');
 
         $ld = \App\Http\Controllers\Platform\LegalDocumentController::class;
         Route::get('platform/hujjatlar', [$ld, 'index'])->name('platform.legal');
@@ -212,18 +217,15 @@ Route::middleware(['auth', 'active', 'legal', 'demo', 'writable'])->group(functi
         Route::get('platform/brending', [$bc, 'edit'])->name('platform.brand');
         Route::put('platform/brending', [$bc, 'update'])->name('platform.brand.update');
         Route::delete('platform/brending/{what}', [$bc, 'remove'])->name('platform.brand.remove');
-        $mc = \App\Http\Controllers\Platform\ModemController::class;
-        Route::get('platform/modemlar', [$mc, 'index'])->name('platform.modems');
-        Route::post('platform/modemlar/qidirish', [$mc, 'scan'])->middleware('throttle:6,1')->name('platform.modems.scan');
-        Route::post('platform/modemlar/{modem}/holat', [$mc, 'toggle'])->whereNumber('modem')->name('platform.modems.toggle');
-        Route::put('platform/modemlar/{modem}', [$mc, 'update'])->whereNumber('modem')->name('platform.modems.update');
-        Route::post('platform/modemlar/{modem}/tozalash', [$mc, 'reset'])->whereNumber('modem')->name('platform.modems.reset');
-        Route::post('platform/modemlar/{modem}/sinov', [$mc, 'test'])->whereNumber('modem')->middleware('throttle:10,1')->name('platform.modems.test');
         $ps = \App\Http\Controllers\Platform\SmsPlatformController::class;
         Route::get('platform/sms', [$ps, 'index'])->name('platform.sms');
         Route::put('platform/sms/sozlama', [$ps, 'settings'])->name('platform.sms.settings');
-        Route::post('platform/markazlar/{center}/sms-faktura', [$ps, 'invoiceStore'])->whereNumber('center')->name('platform.sms.invoices.store');
-        Route::post('platform/sms-faktura/{invoice}/bekor', [$ps, 'invoiceCancel'])->whereNumber('invoice')->name('platform.sms.invoices.cancel');
+        $stc = \App\Http\Controllers\Platform\SmsTemplateController::class;
+        Route::get('platform/sms-shablonlar', [$stc, 'index'])->name('platform.sms.templates');
+        Route::put('platform/sms-shablonlar/{key}', [$stc, 'update'])->where('key', '[a-z_]+')->name('platform.sms.templates.update');
+        Route::post('platform/sms-shablonlar/{key}/tasdiqlash', [$stc, 'approve'])->where('key', '[a-z_]+')->middleware('throttle:20,1')->name('platform.sms.templates.approve');
+        Route::post('platform/sms-shablonlar/{key}/qaytarish', [$stc, 'revoke'])->where('key', '[a-z_]+')->name('platform.sms.templates.revoke');
+        Route::post('platform/sms-shablonlar/yangilash', [$stc, 'refresh'])->middleware('throttle:6,1')->name('platform.sms.templates.refresh');
         Route::get('platform/toldirish', [$pt, 'index'])->name('platform.topups');
         Route::get('platform/toldirish/{topup}/chek', [\App\Http\Controllers\Platform\TopupController::class, 'receipt'])->whereNumber('topup')->name('platform.topups.receipt');
         Route::post('platform/toldirish/{topup}/tasdiqlash', [$pt, 'approve'])->whereNumber('topup')->name('platform.topups.approve');
@@ -279,10 +281,6 @@ Route::middleware(['auth', 'active', 'legal', 'demo', 'writable'])->group(functi
         ->except(['show', 'destroy']);
     Route::get('staff/{user}/permissions', [PermissionController::class, 'edit'])->name('staff.permissions.edit');
     Route::put('staff/{user}/permissions', [PermissionController::class, 'update'])->name('staff.permissions.update');
-    // v9: filial cheklovisiz, faqat ism/rol/filial ro'yxati (odatda Operatorga)
-    Route::get('staff-directory', [StaffDirectoryController::class, 'index'])->name('staff.directory');
-    // v10 (1-band): shu ruxsat bilan boshqa filialning o'quvchi/guruh/lidlarini FAQAT KO'RISH (yozish yo'q)
-    Route::get('staff-directory/{branch}', [StaffDirectoryController::class, 'branch'])->name('staff.directory.branch');
 
     // O'quvchilar
     Route::get('students/create', [StudentController::class, 'create'])->middleware('branch')->name('students.create');

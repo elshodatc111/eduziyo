@@ -31,7 +31,7 @@ class UsageService
             return true;
         }
 
-        return $limit > 0 && ($this->used($center, $kind) + $count <= $limit || ($kind === 'sms' && $this->extra($center) >= $count));
+        return $limit > 0 && ($this->used($center, $kind) + $count <= $limit);
     }
 
     /** Hisobni oshiradi; limit tugagan bo'lsa false (oshirmaydi). */
@@ -48,8 +48,7 @@ class UsageService
             $row = UsageCounter::withoutGlobalScopes()->where(['center_id' => $center->id, 'kind' => $kind, 'period_start' => $period])->lockForUpdate()->firstOrFail();
 
             if ($limit !== null && ($limit <= 0 || $row->used + $count > $limit)) {
-                // Oylik limit tugadi: sotib olingan qo'shimcha SMS (tarif davri oxirigacha) dan olinadi
-                return $kind === 'sms' && $limit > 0 && $this->takeExtra($center, $count);
+                return false;   // oylik limit tugadi
             }
 
             $row->used += $count;
@@ -60,24 +59,10 @@ class UsageService
         });
     }
 
-    /** Joriy obunadagi qolgan qo'shimcha SMS soni. */
-    public function extra(Center $center): int
+    /** Xizmat ko'rsatilmagan bo'lsa (masalan, AI ikkala provayderda ham xato bersa) hisobni qaytaradi. */
+    public function refund(Center $center, string $kind, int $count = 1): void
     {
-        return (int) ($this->subs->current($center)?->extra_sms ?? 0);
-    }
-
-    private function takeExtra(Center $center, int $count): bool
-    {
-        $sub = \App\Models\CenterSubscription::withoutGlobalScopes()->where('center_id', $center->id)
-            ->where('starts_at', '<=', now())->where('ends_at', '>', now())->orderByDesc('starts_at')->lockForUpdate()->first();
-
-        if (! $sub || $sub->extra_sms < $count) {
-            return false;
-        }
-
-        $sub->extra_sms -= $count;
-        $sub->save();
-
-        return true;
+        UsageCounter::withoutGlobalScopes()->where(['center_id' => $center->id, 'kind' => $kind])
+            ->where('period_start', now()->startOfMonth()->toDateString())->where('used', '>=', $count)->decrement('used', $count);
     }
 }

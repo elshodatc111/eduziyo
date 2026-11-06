@@ -4,6 +4,9 @@
 @section('content')
     <x-page-header title="Sotuv arizalari" subtitle="Sotuv sahifasidan kelgan arizalar. Faqat sAdmin ko'radi." />
 
+    @if ($only)
+        <div class="mb-3 rounded-xl bg-brand-50 p-3 text-sm text-brand-700 dark:bg-ink-800 dark:text-brand-200">Faqat #{{ $only }} ariza ko'rsatilmoqda. <a href="{{ route('sales.applications') }}" class="font-semibold underline">Hammasini ko'rish</a></div>
+    @endif
     <div class="mb-4 flex flex-wrap items-center gap-2">
         <a href="{{ route('sales.applications') }}" class="{{ ! $status ? 'btn-primary' : 'btn-secondary' }} btn-sm">Hammasi</a>
         @foreach (\App\Models\SalesApplication::STATUSES as $k => $label)

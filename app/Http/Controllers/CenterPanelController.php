@@ -147,7 +147,7 @@ class CenterPanelController extends Controller
                 .'To\'lov vaqti: '.\Illuminate\Support\Carbon::parse($topup->paid_at)->format('d.m.Y H:i')."\n"
                 .($card ? 'Karta: …'.substr(preg_replace('/\D+/', '', (string) $card->number), -4)."\n" : '')
                 .'Yuborgan: '.e($by->name).($topup->note ? "\nIzoh: ".e($topup->note) : '')
-                ."\n\n".route('platform.topups');
+                ."\n\n🔗 Ochish: ".route('platform.topups', ['id' => $topup->id]);
             $tg->toSadmins($text);
 
             $full = Storage::disk('local')->path($topup->receipt_path);

@@ -1,13 +1,13 @@
 # EDUZIYO
 
 Ko'p markazli (multi-tenant) o'quv markazlari boshqaruv platformasi.
-**Laravel 12 · PHP 8.3 · MySQL/MariaDB · Blade + Tailwind + Alpine.js · Telegram bot · USB modem SMS**
+**Laravel 12 · PHP 8.3 · MySQL/MariaDB · Blade + Tailwind + Alpine.js · Telegram bot · SMS Gateway + Eskiz**
 
 Bitta o'rnatishda ko'p o'quv markazi ishlaydi; har markazning o'z filiallari, xodimlari, o'quvchilari va puli bor va ular bir-birini ko'rmaydi.
 Platformani egasi (**sAdmin**) boshqaradi: markazlar, tariflar, to'lovlar, murojaatlar, integratsiyalar.
 
 > Versiya tarixi: [`CHANGELOG.md`](CHANGELOG.md) · Joylashtirish: [`docs/DEPLOY.md`](docs/DEPLOY.md) ·
-> Zaxira: [`docs/BACKUP_RESTORE.md`](docs/BACKUP_RESTORE.md) · USB modem: [`docs/SMS_MODEM.md`](docs/SMS_MODEM.md)
+> Zaxira: [`docs/BACKUP_RESTORE.md`](docs/BACKUP_RESTORE.md)
 
 ---
 
@@ -33,7 +33,7 @@ Platformani egasi (**sAdmin**) boshqaradi: markazlar, tariflar, to'lovlar, muroj
 ## 1. Imkoniyatlar
 
 **Markaz ichida:** filiallar, xodimlar va ruxsatlar, o'quvchilar, guruhlar va jadval, davomat, to'lovlar (ikki bosqichli tasdiqlash, storno, chegirma/aksiya),
-kassa va smena, moliya va xarajatlar, o'qituvchi/xodim ish haqi, lid-varonka, kurslar (video/audio/test), SMS (USB modem + Eskiz zaxirasi),
+kassa va smena, moliya va xarajatlar, o'qituvchi/xodim ish haqi, lid-varonka, kurslar (video/audio/test), SMS (SMS Gateway + platforma va markaz Eskiz'i),
 statistika va hisobotlar, Excel import/eksport, AI yordamchi, o'quvchi veb-kabineti (PWA).
 
 **Platforma darajasida (sAdmin):** markazlar konsoli va tahlil, tariflar va obuna, markaz balansi va to'ldirish (chek bilan), limitlar,
@@ -108,10 +108,10 @@ Tizim 3 ta alohida jarayonga tayanadi; biri to'xtasa SMS, zaxira va tarif muddat
 |---|---|---|
 | Rejalashtiruvchi | `schedule:work` (yoki har daqiqa `schedule:run`) | SMS yuborish, zaxira, tarif muddati, audit, eslatmalar |
 | Navbat | `queue:work` | Fon vazifalari |
-| Modem ishchisi | `sms:modem-run` | USB modem orqali SMS (ixtiyoriy) |
+| Gateway holati | `sms:gateway-sync` (har 5 daq) | Gateway navbatidagi SMS holati; yuborilmaganlar Eskiz'ga o'tadi |
 | **Watchdog** | `system:watch --loop` | Yuqoridagilarni tekshiradi, to'xtasa **Telegram**'ga xabar beradi |
 
-Watchdog nimalarni kuzatadi: cron yurak urishi, navbat yurak urishi (va ishlamay qolgan vazifalar), modem ishchisi, disk, oxirgi zaxira.
+Watchdog nimalarni kuzatadi: cron yurak urishi, navbat yurak urishi (va ishlamay qolgan vazifalar), SMS Gateway, disk, oxirgi zaxira.
 Holat o'zgargandagina xabar yuboradi (takrorlamaydi) va tiklanganda ham xabar beradi. Qo'shimcha: `system:watch` har 5 daqiqada cron orqali ham ishlaydi
 (cron o'zi to'xtasa, `--loop` rejimidagi alohida jarayon xabar beradi).
 
@@ -136,8 +136,11 @@ Maxfiylik: Telegram'ga faqat kerakli matn yuboriladi; webhook maxfiy sarlavha bi
 ## 7. Integratsiyalar
 
 sAdmin → **Integratsiyalar** sahifasi `.env` o'rniga ishlatiladi (sahifadagi qiymat `.env` dan ustun; bo'sh qoldirilsa avvalgisi saqlanadi, sirlar shifrlanadi va to'liq ko'rsatilmaydi):
-Telegram bot tokeni (Telegram'da tekshiriladi), webhook o'rnatish/holat/olib tashlash, ogohlantirish chatlari, USB modem portlari, tezlik,
-xabarlar orasidagi tasodifiy pauza, SIM kunlik chegarasi (oshsa SMS Eskiz orqali ketadi). OpenAI va Eskiz kalitlari hozircha `.env` da.
+Telegram bot tokeni (Telegram'da tekshiriladi), webhook o'rnatish/holat/olib tashlash, ogohlantirish chatlari, SMS Gateway manzili/kaliti/webhook siri,
+xabarlar orasidagi tasodifiy pauza, SIM kunlik chegarasi (oshsa SMS Eskiz orqali ketadi), **AI kalitlari (OpenAI + Claude, asosiy/zaxira)** va **platforma Eskiz hisobi**.
+
+**SMS yo'nalishi:** tarif limiti ichida SMS Gateway (`sms.elshod.date`; rad etsa/ishlamasa yoki `failed`/`expired` bo'lsa platforma Eskiz'i; holat webhook `/api/sms-gateway/webhook` + `sms:gateway-sync` orqali); limit tugagach markazning o'z Eskiz akkaunti (Markaz → SMS). Eskiz orqali faqat sAdmin «SMS shablonlar»da tasdiqlagan matnlar ketadi; tasdiqlangan matnlar markaz Eskiz'iga avtomatik moderatsiyaga yuboriladi. Limit tugab Eskiz ulanmagan bo'lsa direktorga SMS va Telegram xabari boradi.
+**AI:** OpenAI va Claude bir xil ishlaydi; asosiy xato bersa avtomatik ikkinchisiga o'tadi.
 
 ## 8. Testlar va sifat nazorati
 
@@ -165,7 +168,7 @@ Muhim to'plamlar: `TenancyMetaTest` (center_id bor jadval — scope'li model), `
 Hammasi [`docs/DEPLOY.md`](docs/DEPLOY.md) da bosqichma-bosqich. Qisqacha:
 
 - **GitHub:** kompyuterdan SSH bilan `git push`; serverda **alohida deploy kaliti** va `github-eduziyo` alias — boshqa loyihalar kalitlariga tegmaydi.
-- **Docker:** `deploy/docker-compose.yml` (loyiha nomi `eduziyo`): `app` (php-fpm), `web` (nginx, `127.0.0.1:7005`), `queue`, `scheduler`, `watchdog`, ixtiyoriy `modem`.
+- **Docker:** `deploy/docker-compose.yml` (loyiha nomi `eduziyo`): `app` (php-fpm), `web` (nginx, `127.0.0.1:7005`), `queue`, `scheduler`, `watchdog`.
   Alohida baza/foydalanuvchi (`deploy/db-create.sh`), xotira/CPU chegaralari, loglar aylantiriladi.
 - **Cloudflare Tunnel:** mavjud tunnelga bitta yangi marshrut — `educrm.elshod.date` → `http://localhost:7005`. Eski marshrutlar o'zgarmaydi.
 - **Yangilash:** serverda `./deploy/deploy.sh` (git pull → build → `tenancy:scan` → migrate → qayta ishga tushirish → `tenancy:audit`); orqaga qaytarish: `--rollback`.
@@ -192,8 +195,8 @@ app/Services           Pul servislari, SystemWatch, SupportService, Telegram/{Te
 app/Support            CenterContext, BranchContext, IntegrationSettings, PermissionRegistry, Format
 config/permissions.php Ruxsatlar va rol shablonlari
 database/tenancy-baseline.json   tenancy:scan chegarasi
-deploy/                Dockerfile, docker-compose.yml, nginx.conf, deploy.sh, db-create.sh, modem xizmati
-docs/                  DEPLOY.md, BACKUP_RESTORE.md, SMS_MODEM.md
+deploy/                Dockerfile, docker-compose.yml, nginx.conf, deploy.sh, db-create.sh
+docs/                  DEPLOY.md, BACKUP_RESTORE.md
 resources/ai/knowledge.md        Yordam AI bilim bazasi (foydalanuvchiga ko'rinadigan har xususiyat uchun yangilanadi)
 routes/                web.php, api.php (faqat Telegram webhook), console.php (jadval)
 tests/Feature          Avtomatik testlar
@@ -210,7 +213,7 @@ tests/Feature          Avtomatik testlar
 ## 14. Ma'lum cheklovlar va reja
 
 - Huquqiy hujjat matnlari (oferta, maxfiylik, shartlar) — **qoralama**; e'lon qilishdan oldin yurist ko'rib chiqishi kerak.
-- Modem ishchisi haqiqiy USB modem bilan server muhitida sinab ko'rilishi kerak (testlarda soxtalashtirilgan).
+- Gateway integratsiyasi testlarda `Http::fake` bilan tekshirilgan; haqiqiy gateway bilan birinchi sinov «Gateway'ni tekshirish» tugmasi va bitta sinov SMS orqali qilinadi. Gateway navbati umumiy (5 s oraliq, 15 daq muddat): ommaviy SMS OTP'ni kechiktirishi mumkin.
 - Video qo'llanma hozir YouTube havolasi orqali; o'z serverida saqlash alohida qaror talab qiladi.
 - Laravel 13 ga o'tish, Web Push — tashqi paket/vendor yangilashni talab qiladi (rejada).
 - Onlayn karta to'lovi, 2FA, SMS matnlarini AI bilan tayyorlash — keyingi bosqichlar.

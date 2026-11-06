@@ -9,6 +9,9 @@ use App\Models\SmsMessage;
 use App\Models\SmsTemplate;
 use App\Models\User;
 use App\Support\Format;
+use App\Models\CenterSmsAccount;
+use App\Services\Sms\EskizClient;
+use App\Services\Sms\SmsPlatformTemplates;
 use App\Support\SmsTemplates;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
@@ -16,7 +19,10 @@ use Illuminate\Support\Facades\Http;
 use RuntimeException;
 
 /**
- * Eskiz.uz orqali SMS yuborish. Filialning o'z akkaunti bo'lsa o'sha, bo'lmasa .env dagi umumiy akkaunt ishlatiladi.
+ * SMS yuborish. Yo'nalish:
+ *  1) tarifning oylik SMS limiti ichida — SMS Gateway (sms.elshod.date); gateway rad etsa/ishlamasa yoki xabar yuborilmay qolsa platforma Eskiz hisobi (sAdmin «Integratsiyalar»);
+ *  2) limit tugagach — markazning O'Z Eskiz akkaunti (ulangan bo'lsa), aks holda yuborilmaydi va direktorga xabar boradi.
+ * Eskiz orqali (1-gateway ishlamasa va 2) FAQAT sAdmin tasdiqlagan matnlar ketadi.
  * Xabarlar avval bazaga yoziladi va navbat (queue) orqali yuboriladi.
  */
 class SmsService
@@ -31,7 +37,8 @@ class SmsService
         $row = SmsTemplate::withoutGlobalScopes()->where('branch_id', $branch->id)->where('key', $key)->first();
 
         return [
-            'body' => $row->body ?? $default['body'] ?? '',
+            // filial o'zgartirmagan bo'lsa — sAdmin tasdiqlagan (yoki tahrir qilgan) umumiy matn
+            'body' => $row->body ?? SmsPlatformTemplates::body($key) ?? $default['body'] ?? '',
             'enabled' => $row ? $row->is_enabled : ($default['enabled'] ?? false),
         ];
     }
@@ -173,37 +180,134 @@ class SmsService
             return;
         }
 
-        // Tarif bo'yicha oylik SMS limiti (tarifsiz eski markaz cheksiz). Limit tugasa yuborilmaydi, direktorga xabar boradi.
         $centerId = \Illuminate\Support\Facades\DB::table('branches')->where('id', $sms->branch_id)->value('center_id');
-        if ($centerId && ($center = \App\Models\Center::find($centerId)) && ! app(UsageService::class)->consume($center, 'sms')) {
-            $sms->update(['status' => SmsMessage::FAILED, 'provider_response' => "Tarif SMS limiti tugagan yoki tarifda SMS yo'q", 'secret' => null]);
+        $center = $centerId ? \App\Models\Center::find($centerId) : null;
+
+        // Tarif bo'yicha oylik SMS limiti (tarifsiz eski markaz cheksiz; tizim xabarlari limitga sanalmaydi)
+        if ($center && ! in_array($sms->template_key, SmsTemplates::SYSTEM_KEYS, true) && ! app(UsageService::class)->consume($center, 'sms')) {
+            // Limit tugadi → markazning o'z Eskiz akkaunti (bo'lsa)
+            $own = CenterSmsAccount::usableFor($center->id);
+            if ($own) {
+                $this->deliverViaEskiz($sms, $own);
+
+                return;
+            }
+
+            $sms->update(['status' => SmsMessage::FAILED, 'provider_response' => "Tarif SMS limiti tugagan. Eskiz ulanmagan: direktor «Markaz → SMS» bo'limida Eskiz'ni ulasin.", 'secret' => null]);
             $this->notifyLimit($center);
 
             return;
         }
 
-        // Kanal: USB modem tirik bo'lsa shu, bo'lmasa Eskiz
-        $modem = app(\App\Services\Sms\ModemDriver::class);
-        ($modem->available() ? $modem : app(\App\Services\Sms\EskizDriver::class))->send($sms);
+        // Limit ichida: avval SMS Gateway, u ishlamasa platforma Eskiz'i
+        $this->deliverViaGateway($sms, $text);
     }
 
-    /** Direktorga "SMS limiti tugadi" xabari (sutkada bir marta). */
-    private function notifyLimit(\App\Models\Center $center): void
+    private function deliverViaGateway(SmsMessage $sms, string $text): void
     {
-        if (Cache::add("sms-limit-alert:{$center->id}:".today()->toDateString(), 1, now()->addDay())) {
-            app(CenterAlerts::class)->send($center, "SMS limiti tugadi: yangi xabarlar yuborilmayapti. Direktor «Markaz» bo'limidan SMS fakturasini qabul qilsin yoki tarifni yangilasin.");
+        $client = \App\Services\Sms\SmsGatewayClient::make();
+        if (! $client) {
+            $this->deliverViaEskiz($sms);   // gateway sozlanmagan
+
+            return;
+        }
+
+        $r = $client->send($sms->phone, $text, 'eduziyo-'.$sms->id);
+        if ($r['ok']) {
+            // Xabar gateway navbatida: yakuniy holat webhook yoki sms:gateway-sync orqali keladi (matn zaxira uchun saqlanadi)
+            $sms->update(['channel' => 'gateway', 'gateway_id' => $r['id'], 'provider_response' => 'Gateway navbatida']);
+
+            return;
+        }
+
+        if ($r['fallback']) {
+            $this->deliverViaEskiz($sms);
+            $sms->refresh();
+            $sms->update(['provider_response' => mb_substr($r['error'].' → Eskiz: '.$sms->provider_response, 0, 1000)]);
+
+            return;
+        }
+
+        $sms->update(['channel' => 'gateway', 'status' => SmsMessage::FAILED, 'provider_response' => $r['error'], 'secret' => null]);
+    }
+
+    /**
+     * Gateway'dan yakuniy holat keldi (webhook yoki tekshiruv). Muvaffaqiyatsiz bo'lsa — Eskiz'ga o'tkaziladi
+     * (tarif hisobi qayta sanalmaydi; faqat tasdiqlangan matn ketadi). Bir xabar uchun faqat bir marta ishlaydi.
+     */
+    public function applyGatewayStatus(SmsMessage $sms, string $status, ?string $error = null): void
+    {
+        if ($sms->status !== SmsMessage::QUEUED || $sms->channel !== 'gateway') {
+            return;
+        }
+
+        if ($status === 'sent') {
+            $sms->update(['status' => SmsMessage::SENT, 'sent_at' => now(), 'provider_response' => 'Gateway: yuborildi', 'secret' => null]);
+
+            return;
+        }
+
+        if (in_array($status, ['failed', 'expired'], true)) {
+            $reason = 'Gateway '.$status.($error ? ': '.mb_substr($error, 0, 150) : '');
+            $this->deliverViaEskiz($sms);
+            $sms->refresh();
+            $sms->update(['provider_response' => mb_substr($reason.' → Eskiz: '.$sms->provider_response, 0, 1000)]);
+
+            return;
+        }
+
+        if ($status === 'cancelled') {
+            $sms->update(['status' => SmsMessage::FAILED, 'provider_response' => 'Gateway: bekor qilingan', 'secret' => null]);
         }
     }
 
-    /** Eskiz orqali yuborish (modem navbatidan fallback ham shu yo'l bilan ketadi). Limit bu yerda qayta hisoblanmaydi. */
-    public function deliverViaEskiz(SmsMessage $sms): void
+    /**
+     * Direktorga "SMS limiti tugadi" xabari: oyiga bir marta — SMS (tizim matni, limitga sanalmaydi) va Telegram.
+     * Eskiz'ni ulash tavsiya qilinadi.
+     */
+    public function notifyLimit(\App\Models\Center $center): void
     {
-        $text = $sms->secret ?? $sms->message;
+        if (! Cache::add("sms-limit-alert:{$center->id}:".now()->format('Y-m'), 1, now()->endOfMonth()->addDay())) {
+            return;
+        }
+
+        app(CenterAlerts::class)->send($center, "SMS limiti tugadi: yangi xabarlar yuborilmayapti. Davom ettirish uchun «Markaz → SMS» bo'limida o'z Eskiz akkauntingizni ulang yoki tarifni yangilang.");
 
         try {
-            [$email, $password, $from] = $this->credentials(Branch::findOrFail($sms->branch_id));
-            $response = $this->send($email, $password, $from, $sms->phone, $text);
+            $director = User::withoutGlobalScopes()->where('center_id', $center->id)->where('role', \App\Enums\Role::Owner)->whereNotNull('phone')->orderBy('id')->first();
+            $branch = Branch::withoutGlobalScopes()->where('center_id', $center->id)->orderBy('id')->first();
+            $body = SmsPlatformTemplates::body('sms_limit_reached');
+
+            if ($director && $branch && $body) {
+                $this->queue($branch, $director->phone, $this->render($body, ['name' => $director->name, 'center' => $center->name]), 'sms_limit_reached', $director);
+            }
+        } catch (\Throwable $e) {
+            report($e);   // ogohlantirish xatosi asosiy jarayonni buzmasin
+        }
+    }
+
+    /**
+     * Eskiz orqali yuborish. $own — markazning o'z akkaunti (limit tugagach); yo'q bo'lsa platforma akkaunti (gateway ishlamaganda).
+     * Faqat sAdmin tasdiqlagan matn yuboriladi. Limit bu yerda qayta hisoblanmaydi.
+     */
+    public function deliverViaEskiz(SmsMessage $sms, ?CenterSmsAccount $own = null): void
+    {
+        $text = $sms->secret ?? $sms->message;
+        $sms->update(['channel' => $own ? 'own' : 'eskiz']);
+
+        if (! SmsPlatformTemplates::allows($sms->template_key, $text)) {
+            $sms->update(['status' => SmsMessage::FAILED, 'provider_response' => "Matn sAdmin tomonidan tasdiqlanmagan: Eskiz orqali yuborilmaydi (faqat tasdiqlangan shablonlar).", 'secret' => null]);
+
+            return;
+        }
+
+        try {
+            $client = $own ? EskizClient::forAccount($own) : (EskizClient::platform() ?? throw new RuntimeException("Platforma Eskiz hisobi sozlanmagan (sAdmin → Integratsiyalar)."));
+            $response = $client->send($sms->phone, $text);
         } catch (RuntimeException $e) {
+            if ($own) {
+                $own->forceFill(['status' => 'error', 'last_error' => mb_substr($e->getMessage(), 0, 250), 'checked_at' => now()])->save();
+            }
             $sms->update(['status' => SmsMessage::FAILED, 'provider_response' => $e->getMessage(), 'secret' => null]);
 
             return;
@@ -218,58 +322,5 @@ class SmsService
             'provider_response' => mb_substr(json_encode($response, JSON_UNESCAPED_UNICODE), 0, 1000),
             'secret' => null,
         ]);
-    }
-
-    /** @return array{0:string,1:string,2:string} */
-    private function credentials(Branch $branch): array
-    {
-        if ($branch->hasOwnSmsAccount()) {
-            return [$branch->eskiz_email, $branch->eskiz_password, $branch->eskiz_from ?: config('services.eskiz.from')];
-        }
-
-        $email = config('services.eskiz.email');
-        $password = config('services.eskiz.password');
-
-        if (blank($email) || blank($password)) {
-            throw new RuntimeException("Eskiz akkaunti sozlanmagan (.env yoki filial sozlamalari).");
-        }
-
-        return [$email, $password, config('services.eskiz.from')];
-    }
-
-    private function send(string $email, string $password, string $from, string $phone, string $message, bool $retry = true): array
-    {
-        $base = rtrim(config('services.eskiz.base_url'), '/');
-        $response = Http::withToken($this->token($email, $password))->timeout(20)->post("{$base}/message/sms/send", [
-            'mobile_phone' => $phone, 'message' => $message, 'from' => $from,
-        ]);
-
-        // Token eskirgan bo'lsa, yangilab bir marta qayta urinamiz
-        if ($response->status() === 401 && $retry) {
-            Cache::forget($this->tokenKey($email));
-
-            return $this->send($email, $password, $from, $phone, $message, retry: false);
-        }
-
-        return (array) $response->json();
-    }
-
-    private function token(string $email, string $password): string
-    {
-        return Cache::remember($this->tokenKey($email), now()->addDays(25), function () use ($email, $password) {
-            $base = rtrim(config('services.eskiz.base_url'), '/');
-            $response = Http::timeout(20)->post("{$base}/auth/login", ['email' => $email, 'password' => $password]);
-
-            if (! $response->successful() || ! $response->json('data.token')) {
-                throw new RuntimeException('Eskiz akkauntiga kirib bo\'lmadi (login yoki parol noto\'g\'ri).');
-            }
-
-            return $response->json('data.token');
-        });
-    }
-
-    private function tokenKey(string $email): string
-    {
-        return 'eskiz_token_'.md5($email);
     }
 }

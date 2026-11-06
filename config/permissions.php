@@ -109,9 +109,6 @@ return [
                 'staff.view' => ['label' => "Hodimlarni ko'rish", 'roles' => ['admin']],
                 'staff.manage' => ['label' => "Menejer va o'qituvchi qo'shish, tahrirlash", 'roles' => ['admin']],
                 'staff.pay' => ['label' => "Hodimga ish haqi to'lash", 'roles' => ['admin']],
-                // v9: barcha filiallar bo'yicha faqat ism/rol/filial ro'yxati - boshqa filial ma'lumotiga
-                // (o'quvchi, to'lov, sozlama) kirish yo'q. Standart holatda Operatorga beriladi.
-                'staff.view_all_branches' => ['label' => "Barcha filiallar xodimlarini ko'rish (faqat ism, rol, filial)", 'roles' => $staff],
             ],
         ],
 
@@ -198,8 +195,6 @@ return [
             'attendance.view', 'attendance.take',
             'payments.view', 'payments.create',
             'leads.view', 'leads.manage',
-            // v9: lid/murojaat bilan ishlayotganda boshqa filialdagi mas'ul xodimni topa olishi uchun.
-            'staff.view_all_branches',
         ],
     ],
 

@@ -4,19 +4,12 @@ namespace Tests\Feature;
 
 use App\Enums\Role;
 use App\Models\PlatformSetting;
-use App\Models\SmsModem;
-use App\Services\Sms\Modem\ModemWorker;
-use App\Services\Sms\Modem\PortFactory;
-use App\Services\SmsService;
 use App\Support\IntegrationSettings as S;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Carbon;
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
-use Tests\Support\FakeModemPorts;
 use Tests\TestCase;
 
-/** sAdmin «Integratsiyalar» sahifasi: Telegram bot, webhook, modem parametrlari (.env o'rniga). */
+/** sAdmin «Integratsiyalar» sahifasi: Telegram bot, webhook, SMS Gateway (.env o'rniga). */
 class IntegrationSettingsTest extends TestCase
 {
     use RefreshDatabase;
@@ -33,7 +26,7 @@ class IntegrationSettingsTest extends TestCase
         $b = $this->branch('A');
         $this->actingAs($this->user(Role::Admin, $b))->get('/platform/integratsiyalar')->assertForbidden();
         $this->actingAs($this->sadmin())->get('/platform/integratsiyalar')->assertOk()->assertSee('Integratsiyalar');
-        $this->actingAs($this->user(Role::Admin, $b))->put('/platform/integratsiyalar/modem', [])->assertForbidden();
+        $this->actingAs($this->user(Role::Admin, $b))->put('/platform/integratsiyalar/gateway', [])->assertForbidden();
     }
 
     public function test_token_is_verified_encrypted_masked_and_overrides_env(): void
@@ -126,57 +119,27 @@ class IntegrationSettingsTest extends TestCase
         $this->assertSame('999999:ENVTOKENENVTOKENENVTOKEN', S::get('telegram_token'));
     }
 
-    public function test_modem_settings_validation_and_ports(): void
+    public function test_gateway_settings_validation_encryption_and_check(): void
     {
         $this->actingAs($this->sadmin());
-        $ok = ['ports' => '/dev/ttyUSB*, /dev/ttyACM*', 'baud' => 9600, 'pause_min' => 2, 'pause_max' => 5, 'daily_limit' => 40];
-        $this->put('/platform/integratsiyalar/modem', $ok)->assertSessionHasNoErrors();
-        $this->assertSame(9600, S::int('modem_baud'));
-        $this->assertSame(40, S::int('modem_daily_limit'));
+        $key = 'sk_sms_'.str_repeat('a', 24);
+        $this->put('/platform/integratsiyalar/gateway', ['url' => 'http://x.uz', 'key' => $key])->assertSessionHasErrors('url');
+        $this->put('/platform/integratsiyalar/gateway', ['url' => 'https://sms.elshod.date', 'key' => 'bad'])->assertSessionHasErrors('key');
+        $this->put('/platform/integratsiyalar/gateway', ['url' => 'https://sms.elshod.date/', 'key' => $key, 'secret' => 'whsec_1'])->assertSessionHasNoErrors();
 
-        $this->put('/platform/integratsiyalar/modem', ['ports' => '/etc/passwd'] + $ok)->assertSessionHasErrors('ports');
-        $this->put('/platform/integratsiyalar/modem', ['ports' => '/dev/../etc/x'] + $ok)->assertSessionHasErrors('ports');
-        $this->put('/platform/integratsiyalar/modem', ['baud' => 1234] + $ok)->assertSessionHasErrors('baud');
-        $this->put('/platform/integratsiyalar/modem', ['pause_min' => 9, 'pause_max' => 3] + $ok)->assertSessionHasErrors('pause_max');
-        $this->assertSame(9600, S::int('modem_baud'));   // xato so'rovlar o'zgartirmadi
+        $this->assertSame('https://sms.elshod.date', S::get('gateway_url'));
+        $this->assertSame($key, S::get('gateway_key'));
+        $this->assertNotSame($key, PlatformSetting::value('int_gateway_key'));   // shifrlangan
+        $this->get('/platform/integratsiyalar')->assertOk()->assertDontSee($key);
 
-        $this->assertSame([], array_filter(S::modemPorts(), fn ($p) => ! str_starts_with($p, '/dev/')));
-    }
+        // bo'sh kalit eskisini o'chirmaydi
+        $this->put('/platform/integratsiyalar/gateway', ['url' => 'https://sms.elshod.date', 'key' => ''])->assertSessionHasNoErrors();
+        $this->assertSame($key, S::get('gateway_key'));
 
-    public function test_daily_limit_stops_modem_and_pause_is_used(): void
-    {
-        Carbon::setTestNow('2026-11-05 10:00:00');
-        Cache::flush();
-        config(['services.eskiz.email' => '', 'services.eskiz.password' => '']);
-        Http::fake();
-        FakeModemPorts::$sent = [];
-        $ports = new FakeModemPorts;
-        $ports->devices = ['/dev/ttyUSB1' => FakeModemPorts::modem('860000000000001')];
-        $this->app->instance(PortFactory::class, $ports);
-        $branch = $this->branch('T');
-        $branch->update(['sms_enabled' => true]);
-
-        S::set('modem_daily_limit', '2');
-        S::set('modem_pause_min', '4');
-        S::set('modem_pause_max', '4');
-        $pauses = [];
-        ModemWorker::$pauser = function (int $s) use (&$pauses) { $pauses[] = $s; };
-
-        $worker = app(ModemWorker::class);
-        $worker->tick(true);
-        foreach (['1', '2', '3'] as $t) {
-            app(SmsService::class)->queue($branch, '+998 90 123 4567', 'Xabar '.$t);
-        }
-
-        $r = $worker->tick();
-        $this->assertSame(2, $r['sent']);                              // 3-xabar chegaradan oshdi
-        $this->assertSame([4], $pauses);                                // faqat xabarlar orasida (oxirgisidan keyin emas)
-        $m = SmsModem::first();
-        $this->assertSame(2, $m->daily_sent);
-        $this->assertSame(0, $m->remainingToday());
-
-        // ertasi kuni hisob yangilanadi
-        Carbon::setTestNow('2026-11-06 09:00:00');
-        $this->assertGreaterThan(0, $m->fresh()->remainingToday() ?? 1);
+        Http::fake(['*/api/v1/health' => Http::response(['ok' => true]), '*/api/v1/me/usage' => Http::response(['used' => 1])]);
+        $this->post('/platform/integratsiyalar/gateway/test')->assertSessionHas('success');
+        Http::swap(new \Illuminate\Http\Client\Factory);
+        Http::fake(['*/api/v1/health' => Http::response(['ok' => true]), '*/api/v1/me/usage' => Http::response([], 401)]);
+        $this->post('/platform/integratsiyalar/gateway/test')->assertSessionHas('error');
     }
 }

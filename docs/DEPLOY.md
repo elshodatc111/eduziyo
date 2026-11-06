@@ -103,13 +103,13 @@ Mavjud marshrutlarni **o'zgartirmaysiz**, faqat bittasini qo'shasiz.
 
 1. @BotFather'da bot yarating, tokenni **sAdmin → Integratsiyalar → Telegram** ga kiriting.
 2. "Webhook o'rnatish" tugmasini bosing (URL: `https://educrm.elshod.date/api/telegram/webhook`, maxfiy sarlavha bilan). Holatini shu sahifada ko'rasiz.
-3. sAdmin o'z profilida botga ulanadi → ogohlantirishlar (cron/navbat/modem to'xtashi, to'lov cheki, murojaat) shu chatga keladi. Qo'shimcha chatlar — "Ogohlantirish chatlari" maydoni.
+3. sAdmin o'z profilida botga ulanadi → ogohlantirishlar (cron/navbat to'xtashi, to'lov cheki, murojaat) shu chatga keladi. Qo'shimcha chatlar — "Ogohlantirish chatlari" maydoni.
 
-## 5. Modem (ixtiyoriy)
+## 5. SMS Gateway
 
-USB modem server kompyuteriga ulangan bo'lsa: `.env` ga `MODEM_ENABLED=1` qo'shing, `deploy.sh` modem konteynerini ham ishga tushiradi
-(`/dev/ttyUSB*` ulanadi; `dialout` guruh raqami `docker-compose.yml` da `group_add` — Ubuntu'da `getent group dialout`). Konteyner o'rniga
-systemd xizmatini xohlasangiz: `deploy/eduziyo-modem.service`.
+SMS lar `https://sms.elshod.date` gateway orqali ketadi (sAdmin → Integratsiyalar → SMS Gateway: manzil, API kaliti, webhook siri). Gateway loyihasida
+Webhook URL: `https://educrm.elshod.date/api/sms-gateway/webhook` va shu sir kiritiladi. Gateway ishlamasa SMS avtomatik Eskiz orqali ketadi.
+Eski USB modem konteyneri qolgan bo'lsa: `docker rm -f eduziyo_modem`.
 
 ## 6. Yangilash va orqaga qaytarish
 

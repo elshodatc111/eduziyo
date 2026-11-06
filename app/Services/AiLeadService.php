@@ -24,7 +24,7 @@ class AiLeadService
     {
         if (! $this->ai->configured()) {
             if ($force) {
-                throw ValidationException::withMessages(['ai' => "OpenAI kaliti sozlanmagan. .env faylida OPENAI_API_KEY ni kiriting."]);
+                throw ValidationException::withMessages(['ai' => "AI kaliti sozlanmagan. sAdmin «Integratsiyalar» sahifasida OpenAI yoki Claude kalitini kiriting."]);
             }
 
             return null;

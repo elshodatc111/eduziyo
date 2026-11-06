@@ -3,7 +3,7 @@
 
 @section('content')
 <div x-data="{ tab: '{{ $errors->has('message') ? 'send' : (collect($errors->keys())->contains(fn ($k) => str_starts_with($k, 'templates.')) ? 'settings' : 'history') }}' }">
-    <x-page-header title="SMS" subtitle="Eskiz orqali yuboriladigan xabarlar">
+    <x-page-header title="SMS" subtitle="Mijozlarga yuboriladigan xabarlar">
         @if ($branch)
             <x-slot:actions><span class="{{ $branch->sms_enabled ? 'badge-green' : 'badge-gray' }}">SMS {{ $branch->sms_enabled ? 'yoqilgan' : "o'chiq" }}</span></x-slot:actions>
         @endif
@@ -11,7 +11,7 @@
 
     @if ($branch && ! $branch->sms_enabled)
         <div class="mb-6 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-200">
-            Bu filialda SMS yuborish <b>o'chirilgan</b>. Yoqish uchun «Sozlamalar» bo'limida belgilang (Eskiz akkaunti sozlangan bo'lishi kerak).
+            Bu filialda SMS yuborish <b>o'chirilgan</b>. Yoqish uchun «Sozlamalar» bo'limida belgilang.
         </div>
     @endif
 
@@ -76,7 +76,7 @@
             @csrf @method('PUT')
             <div class="card card-body">
                 <label class="flex items-center gap-3 text-sm font-medium"><input type="checkbox" name="sms_enabled" value="1" class="checkbox" @checked($branch->sms_enabled)> Bu filialda SMS yuborishni yoqish</label>
-                <p class="hint">Eskiz akkaunti: {{ $branch->hasOwnSmsAccount() ? "filialning o'z akkaunti" : 'umumiy akkaunt (.env)' }}. Filial akkauntini sAdmin «Filiallar» bo'limida kiritadi.</p>
+                <p class="hint">SMS avval markaz tarifidagi oylik limitdan sarflanadi (barcha filiallar uchun umumiy). Limit tugagach xabarlar markazning o'z Eskiz akkaunti orqali ketadi — direktor «Markaz → SMS» bo'limida ulaydi.</p>
             </div>
             @foreach ($templates as $key => $t)
                 <div class="card card-body space-y-2">
@@ -92,7 +92,7 @@
                     @endif
                 </div>
             @endforeach
-            <p class="hint">O'zgaruvchilar: {{ implode('  ', array_keys(\App\Support\SmsTemplates::PLACEHOLDERS)) }}. Eskiz shablonlarni oldindan tasdiqlaydi — matnni Eskiz'da ruxsat etilgan ko'rinishda yozing.</p>
+            <p class="hint">O'zgaruvchilar: {{ implode('  ', array_keys(\App\Support\SmsTemplates::PLACEHOLDERS)) }}. Eskiz orqali faqat platforma (sAdmin) tasdiqlagan matnlar ketadi; matnni o'zgartirsangiz, u faqat SMS Gateway orqali yuboriladi (Gateway ishlamasa, yuborilmaydi).</p>
             <button class="btn-primary">Saqlash</button>
         </form>
     @endif

@@ -31,6 +31,7 @@ class V8AttendancePastTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+        $this->approveSmsTemplates();
         Carbon::setTestNow('2026-09-21 10:00:00'); // dushanba, 1-dars kuni (toq kunlar: Du-Chor-Ju)
 
         $this->branch = $this->branch();

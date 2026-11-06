@@ -10,6 +10,19 @@ class SmsTemplates
         '{debt}' => 'Qarz summasi', '{login}' => 'Login', '{password}' => 'Parol', '{group}' => 'Guruh nomi',
     ];
 
+    /** Tizim xabarlari: filialga ko'rinmaydi, tarif limitiga sanalmaydi (sAdmin ularni ham tasdiqlaydi). */
+    public const SYSTEM_KEYS = ['sms_limit_reached'];
+
+    public static function system(): array
+    {
+        return [
+            'sms_limit_reached' => [
+                'label' => "Direktorga: tarif SMS limiti tugadi (avtomatik)", 'enabled' => true,
+                'body' => "Hurmatli {name}, {center} markazining oylik SMS limiti tugadi. Yuborishni davom ettirish uchun CRM'da Eskiz akkauntingizni ulang yoki tarifni yangilang.",
+            ],
+        ];
+    }
+
     public static function all(): array
     {
         return [

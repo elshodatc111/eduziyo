@@ -49,7 +49,7 @@ class TenantLeakCanaryTest extends TestCase
         SmsMessage::create(['branch_id' => $branchB->id, 'recipient_id' => $student->id, 'phone' => '+998 90 999 88 77', 'message' => self::CANARY.' sms', 'status' => 'sent', 'created_by' => $adminB->id]);
         $ticketB = app(\App\Services\SupportService::class)->open($b, $this->user(Role::Owner, null, [], ['center_id' => $b->id]), self::CANARY.' murojaat', 'matn');
 
-        $lists = ['/dashboard', '/students', '/students/search?q='.self::CANARY, '/groups', '/payments', '/leads', '/staff', '/staff-directory', '/sms', '/attendance', '/attendance/stats',
+        $lists = ['/dashboard', '/students', '/students/search?q='.self::CANARY, '/groups', '/payments', '/leads', '/staff', '/sms', '/attendance', '/attendance/stats',
             '/finance', '/cashbox', '/payroll', '/reports', '/statistics', '/audit-log', '/notes/feed', '/branches', '/markaz', '/markaz/direktorlar', '/markaz/tahlil',
             '/markaz/murojaat', '/markaz/sms', '/markaz/balans', '/markaz/tariflar', '/imports'];
         $details = ["/students/{$student->id}", "/groups/{$group->id}", "/leads/{$lead->id}", "/payroll/{$cat['teacher']->id}", "/markaz/murojaat/{$ticketB->id}"];

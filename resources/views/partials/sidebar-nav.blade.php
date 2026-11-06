@@ -20,7 +20,7 @@
             ],
         ],
         [
-            'key' => 'sales', 'title' => 'Murojaat va aloqa', 'icon' => 'funnel',
+            'key' => 'leadsms', 'title' => 'Murojaat va aloqa', 'icon' => 'funnel',
             'items' => [
                 ['label' => 'Varonka', 'href' => route('leads.index'), 'icon' => 'funnel', 'active' => request()->routeIs('leads.*'), 'show' => $me->can('leads.view')],
                 ['label' => 'SMS', 'href' => route('sms.index'), 'icon' => 'message', 'active' => request()->routeIs('sms.*'), 'show' => $me->canany(['sms.view', 'sms.send', 'sms.manage'])],
@@ -48,46 +48,59 @@
                 $me->can('staff.view')
                     ? ['label' => 'Hodimlar', 'href' => route('staff.index'), 'icon' => 'shield', 'active' => request()->routeIs('staff.index', 'staff.create', 'staff.edit'), 'show' => true]
                     : ['label' => "O'qituvchilar", 'href' => route('staff.index', ['role' => 'teacher']), 'icon' => 'shield', 'active' => request()->routeIs('staff.index', 'staff.create', 'staff.edit'), 'show' => $me->can('teachers.view')],
-                ['label' => 'Filiallar xodimlari', 'href' => route('staff.directory'), 'icon' => 'users', 'active' => request()->routeIs('staff.directory'), 'show' => $me->can('staff.view_all_branches')],
                 ['label' => 'Sozlamalar', 'href' => route('catalog.index', 'rooms'), 'icon' => 'cog', 'active' => request()->is('settings/*') && ! request()->is('settings/courses*'), 'show' => $me->can('settings.branch')],
+                ['label' => 'Harakatlar jurnali', 'href' => route('audit.index'), 'icon' => 'log', 'active' => request()->routeIs('audit.*'), 'show' => $me->can('audit.view') && ! $me->isSuperAdmin()],
             ],
         ],
+        // Direktor (markaz egasi): o'z markazi
         [
             'key' => 'center', 'title' => 'Markaz', 'icon' => 'building',
             'items' => [
-                ['label' => 'Obuna va balans', 'href' => route('center.index'), 'icon' => 'wallet', 'active' => request()->routeIs('center.index', 'center.tariffs', 'center.topup'), 'show' => $me->role === \App\Enums\Role::Owner],
+                ['label' => 'Obuna, balans, SMS', 'href' => route('center.index'), 'icon' => 'wallet', 'active' => request()->routeIs('center.index', 'center.tariffs', 'center.topup', 'center.sms', 'center.directors*', 'center.support*'), 'show' => $me->role === \App\Enums\Role::Owner],
                 ['label' => 'Markaz tahlili', 'href' => route('center.analytics'), 'icon' => 'chart', 'active' => request()->routeIs('center.analytics'), 'show' => $me->role === \App\Enums\Role::Owner],
-                ['label' => 'Markazlar', 'href' => route('platform.centers.index'), 'icon' => 'building', 'active' => request()->routeIs('platform.centers.*'), 'show' => $me->isSuperAdmin()],
+                ['label' => 'Filiallar', 'href' => route('branches.index'), 'icon' => 'building', 'active' => request()->routeIs('branches.*'), 'show' => $me->role === \App\Enums\Role::Owner],
+            ],
+        ],
+        // sAdmin: platforma
+        [
+            'key' => 'platform', 'title' => 'Platforma', 'icon' => 'building',
+            'items' => [
+                ['label' => 'Markazlar', 'href' => route('platform.centers.index'), 'icon' => 'building', 'active' => request()->routeIs('platform.centers.*', 'platform.directors*'), 'show' => $me->isSuperAdmin()],
+                ['label' => 'Filiallar', 'href' => route('branches.index'), 'icon' => 'building', 'active' => request()->routeIs('branches.*'), 'show' => $me->isSuperAdmin()],
                 ['label' => "Balans to'ldirish", 'href' => route('platform.topups'), 'icon' => 'wallet', 'active' => request()->routeIs('platform.topups*', 'platform.cards*'), 'show' => $me->isSuperAdmin()],
-                ['label' => 'SMS jurnali (platforma)', 'href' => route('platform.sms'), 'icon' => 'message', 'active' => request()->routeIs('platform.sms*'), 'show' => $me->isSuperAdmin()],
-                ['label' => "Video qo'llanmalar", 'href' => route('platform.guides'), 'icon' => 'video', 'active' => request()->routeIs('platform.guides*'), 'show' => $me->isSuperAdmin()],
                 ['label' => 'Murojaatlar'.(($me->isSuperAdmin() && ($n = app(\App\Services\SupportService::class)->waitingCount())) ? " ($n)" : ''), 'href' => route('platform.support'), 'icon' => 'lifebuoy', 'active' => request()->routeIs('platform.support*'), 'show' => $me->isSuperAdmin()],
-                ['label' => 'Hujjatlar va rozilik', 'href' => route('platform.legal'), 'icon' => 'document', 'active' => request()->routeIs('platform.legal*'), 'show' => $me->isSuperAdmin()],
-                ['label' => 'Integratsiyalar (bot, modem)', 'href' => route('platform.integrations'), 'icon' => 'plug', 'active' => request()->routeIs('platform.integrations*'), 'show' => $me->isSuperAdmin()],
-                ['label' => 'USB modemlar', 'href' => route('platform.modems'), 'icon' => 'usb', 'active' => request()->routeIs('platform.modems*'), 'show' => $me->isSuperAdmin()],
-                ['label' => 'Brending (nom, logotip)', 'href' => route('platform.brand'), 'icon' => 'palette', 'active' => request()->routeIs('platform.brand*'), 'show' => $me->isSuperAdmin()],
                 ['label' => 'Platforma tahlili', 'href' => route('platform.analytics'), 'icon' => 'chart', 'active' => request()->routeIs('platform.analytics'), 'show' => $me->isSuperAdmin()],
             ],
         ],
         [
-            'key' => 'sales', 'title' => 'Sotuv', 'icon' => 'chart',
+            'key' => 'salesadmin', 'title' => 'Sotuv', 'icon' => 'chart',
             'items' => [
                 ['label' => 'Arizalar', 'href' => route('sales.applications'), 'icon' => 'users', 'active' => request()->routeIs('sales.applications*'), 'show' => $me->isSuperAdmin()],
                 ['label' => 'Tariflar', 'href' => route('sales.tariffs'), 'icon' => 'wallet', 'active' => request()->routeIs('sales.tariffs*'), 'show' => $me->isSuperAdmin()],
-                ['label' => 'Videolar', 'href' => route('sales.videos'), 'icon' => 'phone', 'active' => request()->routeIs('sales.videos*'), 'show' => $me->isSuperAdmin()],
                 ['label' => 'Demo kirishlar', 'href' => route('sales.demo'), 'icon' => 'users', 'active' => request()->routeIs('sales.demo*'), 'show' => $me->isSuperAdmin()],
                 ['label' => 'Yangiliklar', 'href' => route('sales.news.index'), 'icon' => 'bell', 'active' => request()->routeIs('sales.news.*'), 'show' => $me->isSuperAdmin()],
+                ['label' => 'Videolar (sotuv sahifasi)', 'href' => route('sales.videos'), 'icon' => 'phone', 'active' => request()->routeIs('sales.videos*'), 'show' => $me->isSuperAdmin()],
                 ['label' => 'Sotuv sozlamalari', 'href' => route('sales.settings'), 'icon' => 'cog', 'active' => request()->routeIs('sales.settings*'), 'show' => $me->isSuperAdmin()],
+            ],
+        ],
+        [
+            'key' => 'comms', 'title' => 'Aloqa va AI', 'icon' => 'plug',
+            'items' => [
+                ['label' => 'Integratsiyalar', 'href' => route('platform.integrations'), 'icon' => 'plug', 'active' => request()->routeIs('platform.integrations*'), 'show' => $me->isSuperAdmin()],
+                ['label' => 'SMS shablonlari', 'href' => route('platform.sms.templates'), 'icon' => 'message', 'active' => request()->routeIs('platform.sms.templates*'), 'show' => $me->isSuperAdmin()],
+                ['label' => 'SMS jurnali', 'href' => route('platform.sms'), 'icon' => 'message', 'active' => request()->routeIs('platform.sms') || request()->routeIs('platform.sms.settings'), 'show' => $me->isSuperAdmin()],
             ],
         ],
         [
             'key' => 'system', 'title' => 'Tizim', 'icon' => 'cog',
             'items' => [
-                ['label' => 'Filiallar', 'href' => route('branches.index'), 'icon' => 'building', 'active' => request()->routeIs('branches.*'), 'show' => $me->isSuperAdmin() || $me->role === \App\Enums\Role::Owner],
-                ['label' => 'Super adminlar', 'href' => route('superadmins.index'), 'icon' => 'shield', 'active' => request()->routeIs('superadmins.*'), 'show' => $me->isSuperAdmin()],
                 ['label' => 'Tizim holati', 'href' => route('system-status.index'), 'icon' => 'cog', 'active' => request()->routeIs('system-status.*'), 'show' => $me->isSuperAdmin()],
+                ['label' => 'Hujjatlar va rozilik', 'href' => route('platform.legal'), 'icon' => 'document', 'active' => request()->routeIs('platform.legal*'), 'show' => $me->isSuperAdmin()],
+                ['label' => 'Brending (nom, logotip)', 'href' => route('platform.brand'), 'icon' => 'palette', 'active' => request()->routeIs('platform.brand*'), 'show' => $me->isSuperAdmin()],
+                ['label' => "Video qo'llanmalar", 'href' => route('platform.guides'), 'icon' => 'video', 'active' => request()->routeIs('platform.guides*'), 'show' => $me->isSuperAdmin()],
+                ['label' => 'Super adminlar', 'href' => route('superadmins.index'), 'icon' => 'shield', 'active' => request()->routeIs('superadmins.*'), 'show' => $me->isSuperAdmin()],
                 ['label' => 'Bildirishnomalar', 'href' => route('notifications.index'), 'icon' => 'bell', 'active' => request()->routeIs('notifications.*'), 'show' => $me->isSuperAdmin()],
-                ['label' => 'Harakatlar jurnali', 'href' => route('audit.index'), 'icon' => 'log', 'active' => request()->routeIs('audit.*'), 'show' => $me->can('audit.view')],
+                ['label' => 'Harakatlar jurnali', 'href' => route('audit.index'), 'icon' => 'log', 'active' => request()->routeIs('audit.*'), 'show' => $me->isSuperAdmin() && $me->can('audit.view')],
             ],
         ],
     ];

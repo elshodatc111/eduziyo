@@ -2,13 +2,12 @@
 
 namespace App\Services;
 
-use App\Models\SmsModem;
-use App\Services\Sms\Modem\ModemWorker;
+use App\Services\Sms\SmsGatewayClient;
 use App\Services\Telegram\TelegramNotifier;
 use Illuminate\Support\Facades\Cache;
 
 /**
- * Jarayonlar nazorati: cron, navbat ishchisi, modem ishchisi, zaxira, disk va kassa to'xtasa/buzilsa sAdminlarga Telegram xabari.
+ * Jarayonlar nazorati: cron, navbat ishchisi, SMS Gateway, zaxira, disk va kassa to'xtasa/buzilsa sAdminlarga Telegram xabari.
  * Faqat HOLAT O'ZGARGANDA xabar beradi («to'xtadi» / «tiklandi»), muammo davom etsa {@see REMIND_HOURS} soatda bir eslatadi.
  * Cron o'zi to'xtasa buyruqni cron ishga tushira olmaydi — shuning uchun Docker'da alohida `watchdog` konteyneri (har 60 soniya) ham bor.
  */
@@ -36,9 +35,9 @@ class SystemWatch
             }
         }
 
-        // Modem ishchisi: kamida bitta yoqilgan modem bo'lsa, ishchi ishlab turishi kerak
-        if (SmsModem::query()->where('enabled', true)->exists() && ! ModemWorker::alive()) {
-            $out['modem_worker'] = "USB modem ishchisi (sms:modem-run): signal yo'q. SMS Eskiz orqali ketadi; modem ishchisini qayta ishga tushiring.";
+        // SMS Gateway: sozlangan bo'lsa tirik bo'lishi kerak (o'lik bo'lsa SMS Eskiz orqali ketadi)
+        if (($gw = SmsGatewayClient::make()) && ! $gw->healthy()) {
+            $out['sms_gateway'] = "SMS Gateway javob bermayapti (modem uzilgan bo'lishi mumkin). SMS vaqtincha Eskiz orqali ketadi.";
         }
 
         return $out;

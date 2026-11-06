@@ -15,8 +15,10 @@ class ApplicationController extends Controller
     {
         $status = $request->query('status');
         $q = trim((string) $request->query('q', ''));
+        $only = (int) $request->query('id');   // Telegram havolasi: bitta arizani ochish
 
         $apps = SalesApplication::query()
+            ->when($only > 0, fn ($x) => $x->whereKey($only))
             ->when(isset(SalesApplication::STATUSES[$status]), fn ($x) => $x->where('status', $status))
             ->when($q !== '', fn ($x) => $x->where(fn ($y) => $y->where('center_name', 'like', "%{$q}%")->orWhere('name', 'like', "%{$q}%")->orWhere('phone', 'like', "%{$q}%")))
             ->orderByRaw("CASE WHEN status = 'new' THEN 0 ELSE 1 END")
@@ -29,6 +31,7 @@ class ApplicationController extends Controller
             'counts' => SalesApplication::query()->selectRaw('status, count(*) as c')->groupBy('status')->pluck('c', 'status'),
             'status' => $status,
             'q' => $q,
+            'only' => $only,
         ]);
     }
 

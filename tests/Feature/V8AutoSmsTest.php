@@ -21,6 +21,7 @@ class V8AutoSmsTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+        $this->approveSmsTemplates();
         Carbon::setTestNow('2026-09-21 10:00:00');
 
         config(['services.eskiz.email' => 'global@eskiz.uz', 'services.eskiz.password' => 'secret', 'services.eskiz.from' => '4546']);

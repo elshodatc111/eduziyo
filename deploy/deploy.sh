@@ -45,8 +45,6 @@ log "Migratsiya"
 
 log "Ishga tushirish"
 "${DC[@]}" up -d --remove-orphans app web queue scheduler watchdog
-# Modem: .env da MODEM_ENABLED=1 bo'lsa
-if grep -qE '^MODEM_ENABLED=1' .env; then "${DC[@]}" --profile modem up -d modem; fi
 
 log "Tenant ma'lumot auditi (tenancy:audit)"
 "${DC[@]}" exec -T app php artisan tenancy:audit || echo "OGOHLANTIRISH: audit muammo topdi — yuqoridagi natijani ko'ring"

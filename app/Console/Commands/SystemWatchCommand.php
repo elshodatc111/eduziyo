@@ -9,7 +9,7 @@ class SystemWatchCommand extends Command
 {
     protected $signature = 'system:watch {--loop : Doimiy ishlash (har 60 soniya) — Docker watchdog uchun}';
 
-    protected $description = "Cron, navbat va modem ishchisi, zaxira, disk holatini tekshirib, muammo bo'lsa sAdminlarga Telegram xabari yuboradi";
+    protected $description = "Cron, navbat va SMS Gateway, zaxira, disk holatini tekshirib, muammo bo'lsa sAdminlarga Telegram xabari yuboradi";
 
     public function handle(SystemWatch $watch): int
     {

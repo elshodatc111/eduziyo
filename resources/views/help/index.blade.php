@@ -22,7 +22,7 @@
 
     @unless ($configured)
         <div class="mb-6 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-200">
-            OpenAI kaliti sozlanmagan. <code>.env</code> faylida <code>OPENAI_API_KEY=...</code> ni kiriting va serverni qayta ishga tushiring.
+            AI kaliti sozlanmagan. Platforma egasi (sAdmin) «Integratsiyalar» sahifasida OpenAI yoki Claude kalitini kiritishi kerak.
         </div>
     @endunless
 

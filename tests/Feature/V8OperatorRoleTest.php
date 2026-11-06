@@ -37,7 +37,6 @@ class V8OperatorRoleTest extends TestCase
             'attendance.view', 'attendance.take',
             'payments.view', 'payments.create',
             'leads.view', 'leads.manage',
-            'staff.view_all_branches', // v9: boshqa filialdagi mas'ul xodimni topa olishi uchun
         ], $operator->permissionKeys());
     }
 

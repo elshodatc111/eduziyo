@@ -7,7 +7,7 @@ use Illuminate\Contracts\Encryption\DecryptException;
 use Illuminate\Support\Facades\Crypt;
 
 /**
- * Tashqi xizmat sozlamalari (Telegram bot, USB modem) — `.env` o'rniga sAdmin sahifasidan boshqariladi.
+ * Tashqi xizmat sozlamalari (Telegram bot, AI, SMS Gateway, Eskiz) — `.env` o'rniga sAdmin sahifasidan boshqariladi.
  * Sahifada saqlangan qiymat `.env` dagisidan ustun turadi; saqlanmagan bo'lsa `.env`/standart qiymat ishlatiladi.
  * Sirlar (token, webhook kaliti) bazada shifrlangan (APP_KEY bilan) saqlanadi va sahifada hech qachon to'liq ko'rsatilmaydi.
  */
@@ -20,11 +20,17 @@ class IntegrationSettings
         'telegram_webhook_secret' => ['services.telegram.webhook_secret', true, null],
         'telegram_webhook_url' => [null, false, null],
         'telegram_alert_chats' => [null, false, null],
-        'modem_ports' => [null, false, '/dev/ttyUSB*,/dev/ttyACM*'],
-        'modem_baud' => [null, false, '115200'],
-        'modem_pause_min' => [null, false, '3'],
-        'modem_pause_max' => [null, false, '8'],
-        'modem_daily_limit' => [null, false, '0'],
+        'openai_key' => ['services.openai.key', true, null],
+        'openai_model' => ['services.openai.model', false, 'gpt-4.1-mini'],
+        'anthropic_key' => ['services.anthropic.key', true, null],
+        'anthropic_model' => ['services.anthropic.model', false, 'claude-sonnet-4-5'],
+        'ai_primary' => [null, false, 'openai'],
+        'gateway_url' => ['services.sms_gateway.url', false, 'https://sms.elshod.date'],
+        'gateway_key' => ['services.sms_gateway.key', true, null],
+        'gateway_secret' => ['services.sms_gateway.webhook_secret', true, null],
+        'eskiz_email' => ['services.eskiz.email', false, null],
+        'eskiz_password' => ['services.eskiz.password', true, null],
+        'eskiz_from' => ['services.eskiz.from', false, '4546'],
     ];
 
     private static ?array $cache = null;
@@ -106,18 +112,4 @@ class IntegrationSettings
         return $v ? '••••'.mb_substr($v, -4) : null;
     }
 
-    /** @return list<string> */
-    public static function modemPorts(): array
-    {
-        $globs = array_filter(array_map('trim', explode(',', (string) self::get('modem_ports'))));
-        $found = [];
-        foreach ($globs as $g) {
-            // faqat /dev/ ichidagi qurilmalar (boshqa yo'l kiritilsa e'tiborga olinmaydi)
-            if (str_starts_with($g, '/dev/') && ! str_contains($g, '..')) {
-                $found = array_merge($found, glob($g) ?: []);
-            }
-        }
-
-        return array_values(array_unique($found));
-    }
 }

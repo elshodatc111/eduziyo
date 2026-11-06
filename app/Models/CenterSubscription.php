@@ -10,7 +10,7 @@ class CenterSubscription extends Model
 {
     use BelongsToCenter;
 
-    protected $fillable = ['center_id', 'tariff_id', 'period', 'starts_at', 'ends_at', 'price_paid', 'source', 'snapshot', 'created_by', 'note', 'extra_sms'];
+    protected $fillable = ['center_id', 'tariff_id', 'period', 'starts_at', 'ends_at', 'price_paid', 'source', 'snapshot', 'created_by', 'note'];
 
     protected function casts(): array
     {

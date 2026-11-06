@@ -28,7 +28,7 @@ class QueryBudgetTest extends TestCase
     /** Sahifa ochiladigan yo'llar (ro'yxatlar va hisobotlar). */
     public const PAGES = [
         '/dashboard', '/students', '/groups', '/payments', '/leads', '/staff', '/sms', '/attendance', '/attendance/stats',
-        '/finance', '/cashbox', '/payroll', '/reports', '/statistics', '/audit-log', '/notifications', '/notes/feed', '/staff-directory',
+        '/finance', '/cashbox', '/payroll', '/reports', '/statistics', '/audit-log', '/notifications', '/notes/feed',
     ];
 
     private int $seq = 0;
@@ -134,7 +134,7 @@ class QueryBudgetTest extends TestCase
     {
         $sadmin = $this->user(Role::SAdmin);
         $this->actingAs($sadmin);
-        $urls = ['/platform/markazlar', '/platform/toldirish', '/platform/murojaatlar', '/platform/sms', '/platform/tahlil', '/platform/modemlar', '/platform/hujjatlar', '/superadmins', '/sales/applications'];
+        $urls = ['/platform/markazlar', '/platform/toldirish', '/platform/murojaatlar', '/platform/sms', '/platform/tahlil', '/platform/hujjatlar', '/superadmins', '/sales/applications'];
 
         $mk = function (int $n) {
             for ($i = 0; $i < $n; $i++) {

@@ -186,7 +186,7 @@ class TelegramBot
         $app->update(['phone_verified_at' => now(), 'telegram_chat_id' => $chat]);
         Cache::forget("tg:state:{$chat}");
         $this->tg->sendMessage($chat, "✅ Rahmat! Arizangiz tasdiqlandi. Tez orada siz bilan bog'lanamiz.", ['remove_keyboard' => true]);
-        $this->notifier->toSadmins("🆕 Tasdiqlangan ariza\n".e($app->center_name)."\n".e($app->name).", ".e($app->phone));
+        app(\App\Services\Telegram\SadminAlerts::class)->application($app, true);
     }
 
     // ---------------- Ota-ona / o'quvchi ----------------

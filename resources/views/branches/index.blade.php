@@ -27,7 +27,6 @@
                     @if ($branch->phone)<div class="flex items-center gap-2"><x-icon name="phone" class="h-4 w-4 text-ink-400" />{{ $branch->phone }}</div>@endif
                     @if ($branch->address)<div class="flex items-center gap-2"><x-icon name="pin" class="h-4 w-4 text-ink-400" />{{ $branch->address }}</div>@endif
                     <div class="flex items-center gap-2"><x-icon name="users" class="h-4 w-4 text-ink-400" />{{ $branch->staff_count }} hodim · {{ $branch->students_count }} o'quvchi</div>
-                    <div class="text-xs text-ink-400">SMS: {{ $branch->hasOwnSmsAccount() ? "filialning o'z akkaunti" : 'umumiy akkaunt' }}</div>
                     @unless ($branch->isActive())
                         <div class="text-xs text-ink-400">Yopilgan: {{ $branch->closed_at?->format('d.m.Y') }}@if ($branch->closed_reason) — {{ $branch->closed_reason }}@endif</div>
                     @endunless

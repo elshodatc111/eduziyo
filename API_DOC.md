@@ -209,7 +209,7 @@ X-Branch-Id: 3
 
 ### `GET /branches`
 
-Filial tanlagich (picker) uchun barcha filiallar ro'yxati — `staff.view_all_branches` ruxsati bor operator yoki sAdmin ko'radi:
+Filial tanlagich (picker) uchun barcha filiallar ro'yxati — sAdmin ko'radi:
 ```json
 { "success": true, "data": [
   { "id": 1, "name": "Markaziy filial", "status": "active" },
@@ -425,15 +425,6 @@ Javobda yangi o'quvchi login/parol (`credentials`) qaytadi (agar yangi hisob yar
 { "name": "Yangi Menejer", "username": "yangi.menejer", "phone": "+998912223344", "status": "active", "password": "parol12345", "password_confirmation": "parol12345", "role": "manager" }
 ```
 `GET /staff/{id}/payroll` — hisoblangan ish haqi va to'lovlar tarixi, **faqat ko'rish** (to'lash mobilda yo'q).
-
-### 8.6. Boshqa filiallarni ko'rish (mobilda ham bor)
-
-| Metod | URL | Ruxsat |
-|---|---|---|
-| GET | `/staff-directory` | `staff.view_all_branches` |
-| GET | `/staff-directory/{branch}` | `staff.view_all_branches` |
-
-`branch` endpointi tanlangan filialning o'quvchi/guruh/lid ro'yxatini **faqat o'qish uchun** qaytaradi (sahifalangan, `students_page`/`groups_page`/`leads_page` query parametrlari bilan).
 
 ### 8.7. Guruhga o'quvchi biriktirish
 

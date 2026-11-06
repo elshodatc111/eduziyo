@@ -32,19 +32,10 @@ class BranchTest extends TestCase
         $this->assertSame('samarqand-filiali', $branch->code);
         $this->assertTrue($branch->isActive());
 
-        $this->actingAs($sadmin)->put("/branches/{$branch->id}", [
-            'name' => 'Samarqand filiali', 'eskiz_email' => 'sms@edunova.uz', 'eskiz_password' => 'maxfiy', 'eskiz_from' => '4546',
-        ])->assertRedirect();
-        $this->assertTrue($branch->fresh()->hasOwnSmsAccount());
-        $this->assertNotSame('maxfiy', $branch->getRawOriginal('eskiz_password'));
-
-        // Parol bo'sh qoldirilsa saqlanib qoladi
-        $this->actingAs($sadmin)->put("/branches/{$branch->id}", ['name' => 'Samarqand filiali', 'eskiz_email' => 'sms@edunova.uz', 'eskiz_password' => ''])->assertRedirect();
-        $this->assertSame('maxfiy', $branch->fresh()->eskiz_password);
-
-        // Eskiz email o'chirilsa umumiy akkauntga qaytadi
-        $this->actingAs($sadmin)->put("/branches/{$branch->id}", ['name' => 'Samarqand filiali'])->assertRedirect();
-        $this->assertFalse($branch->fresh()->hasOwnSmsAccount());
+        $this->actingAs($sadmin)->put("/branches/{$branch->id}", ['name' => 'Samarqand filiali', 'phone' => '+998 90 111 2244', 'eskiz_email' => 'sms@edunova.uz'])->assertRedirect();
+        $this->assertSame('+998 90 111 2244', $branch->fresh()->phone);
+        // Filial darajasida Eskiz akkaunti yo'q: har markazga bitta akkaunt (Markaz → SMS)
+        $this->assertFalse(\Illuminate\Support\Facades\Schema::hasColumn('branches', 'eskiz_email'));
 
         $this->actingAs($sadmin)->post("/branches/{$branch->id}/close", ['closed_reason' => 'Ijara tugadi'])->assertRedirect();
         $this->assertSame(BranchStatus::Closed, $branch->fresh()->status);

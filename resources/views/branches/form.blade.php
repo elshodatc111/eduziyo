@@ -47,16 +47,6 @@
             </div>
         </div>
 
-        <div class="card card-body">
-            <h2 class="text-base font-semibold text-ink-900 dark:text-white">SMS (Eskiz)</h2>
-            <p class="mb-5 mt-1 text-sm text-ink-500 dark:text-ink-400">Bo'sh qoldirilsa, filial umumiy Eskiz akkauntidan foydalanadi. Alohida akkaunt kerak bo'lsa, quyidagilarni to'ldiring.</p>
-            <div class="grid gap-5 sm:grid-cols-2">
-                <x-input name="eskiz_email" type="email" label="Eskiz email" :value="$branch->eskiz_email" />
-                <x-input name="eskiz_password" type="password" label="Eskiz paroli" :hint="$branch->hasOwnSmsAccount() ? 'O\'zgartirmaslik uchun bo\'sh qoldiring.' : null" autocomplete="new-password" />
-                <x-input name="eskiz_from" label="Yuboruvchi nomi" :value="$branch->eskiz_from" />
-            </div>
-        </div>
-
         <div class="flex gap-2">
             <button class="btn-primary">Saqlash</button>
             <a href="{{ route('branches.index') }}" class="btn-secondary">Bekor qilish</a>

@@ -24,6 +24,7 @@ class SmsTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+        $this->approveSmsTemplates();
         Carbon::setTestNow('2026-09-21 10:00:00');
 
         config(['services.eskiz.email' => 'global@eskiz.uz', 'services.eskiz.password' => 'secret', 'services.eskiz.from' => '4546']);
@@ -106,15 +107,25 @@ class SmsTest extends TestCase
 
         Http::swap(new \Illuminate\Http\Client\Factory);
         Http::fake(['*/auth/login' => Http::response(['data' => ['token' => 'T']]), '*/message/sms/send' => Http::response(['status' => 'error', 'message' => 'Shablon tasdiqlanmagan'], 400)]);
-        $sms = app(SmsService::class)->queue($this->branch, '901234567', 'Salom', null, null, $this->admin);
+        $sms = app(SmsService::class)->queue($this->branch, '901234567', $this->approvedSmsText(), 'payment_received', null, $this->admin);
         $this->assertSame('failed', $sms->fresh()->status);
         $this->assertStringContainsString('Shablon', $sms->fresh()->provider_response);
+
+        // sAdmin tasdiqlamagan (yoki shablonga mos kelmaydigan) matn Eskiz'ga umuman yuborilmaydi
+        Http::swap(new \Illuminate\Http\Client\Factory);
+        Http::fake();
+        $free = app(SmsService::class)->queue($this->branch, '901234567', 'Erkin matn', null, null, $this->admin);
+        $this->assertSame('failed', $free->fresh()->status);
+        $this->assertStringContainsString('tasdiqlanmagan', $free->fresh()->provider_response);
+        $custom = app(SmsService::class)->queue($this->branch, '901234567', "Boshqa matn bu", 'payment_received', null, $this->admin);
+        $this->assertSame('failed', $custom->fresh()->status);
+        Http::assertNothingSent();
     }
 
-    public function test_branch_own_eskiz_account_is_used_and_expired_token_is_refreshed(): void
+    public function test_platform_eskiz_account_is_used_and_expired_token_is_refreshed(): void
     {
         $this->enable();
-        $this->branch->update(['eskiz_email' => 'filial@eskiz.uz', 'eskiz_password' => 'own-pass', 'eskiz_from' => 'FILIAL']);
+        config(['services.eskiz.email' => 'filial@eskiz.uz', 'services.eskiz.password' => 'own-pass', 'services.eskiz.from' => 'FILIAL']);
 
         Http::swap(new \Illuminate\Http\Client\Factory);
         Http::fake([
@@ -122,9 +133,10 @@ class SmsTest extends TestCase
             '*/message/sms/send' => Http::sequence()->push(['message' => 'Expired'], 401)->push(['status' => 'waiting']),
         ]);
 
-        $sms = app(SmsService::class)->queue($this->branch, '901234567', 'Salom', null, null, $this->admin);
+        $sms = app(SmsService::class)->queue($this->branch, '901234567', $this->approvedSmsText(), 'payment_received', null, $this->admin);
 
         $this->assertSame('sent', $sms->fresh()->status);
+        $this->assertSame('eskiz', $sms->fresh()->channel);
         Http::assertSent(fn (Request $r) => str_contains($r->url(), '/auth/login') && $r['email'] === 'filial@eskiz.uz');
         Http::assertSent(fn (Request $r) => str_contains($r->url(), '/message/sms/send') && $r['from'] === 'FILIAL' && $r->hasHeader('Authorization', 'Bearer NEW'));
         Http::assertSentCount(4);   // login, 401, qayta login, yuborish
@@ -135,7 +147,7 @@ class SmsTest extends TestCase
         $this->enable();
         config(['services.eskiz.email' => null, 'services.eskiz.password' => null]);
 
-        $sms = app(SmsService::class)->queue($this->branch, '901234567', 'Salom', null, null, $this->admin);
+        $sms = app(SmsService::class)->queue($this->branch, '901234567', $this->approvedSmsText(), 'payment_received', null, $this->admin);
 
         $this->assertSame('failed', $sms->fresh()->status);
         $this->assertStringContainsString('sozlanmagan', $sms->fresh()->provider_response);

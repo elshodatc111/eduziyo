@@ -2,9 +2,65 @@
 @section('title', 'Integratsiyalar')
 
 @section('content')
-    <x-page-header title="Integratsiyalar" subtitle="Telegram bot va USB modem sozlamalari. Bu yerda saqlangan qiymat .env dagisidan ustun turadi">
-        <x-slot:actions><a href="{{ route('platform.modems') }}" class="btn-secondary">USB modemlar</a></x-slot:actions>
+    <x-page-header title="Integratsiyalar" subtitle="AI (OpenAI/Claude), SMS Gateway, Eskiz va Telegram bot sozlamalari. Bu yerda saqlangan qiymat .env dagisidan ustun turadi">
     </x-page-header>
+
+    {{-- AI --}}
+    <form method="POST" action="{{ route('platform.integrations.ai') }}" class="card card-body mb-4 max-w-3xl space-y-3">@csrf @method('PUT')
+        <h2 class="font-bold text-ink-900 dark:text-white">AI yordamchi (OpenAI va Claude)</h2>
+        <p class="text-xs text-ink-500">Ikkalasi bir xil vazifani bajaradi. Asosiy provayder xato bersa (kalit noto'g'ri, mablag' tugagan, xizmat ishlamayapti) so'rov avtomatik ikkinchisiga o'tadi va sizga Telegram'da xabar keladi. Markazlarning AI limiti ularning tarifidan olinadi.</p>
+        <div>
+            <label class="label" for="primary">Asosiy provayder</label>
+            <select id="primary" name="primary" class="input">
+                @foreach (\App\Services\OpenAiService::PROVIDERS as $k => $label)
+                    <option value="{{ $k }}" @selected(old('primary', $ai['primary']) === $k)>{{ $label }}</option>
+                @endforeach
+            </select>
+        </div>
+        <div class="grid gap-3 sm:grid-cols-2">
+            <div>
+                <label class="label" for="openai_key">OpenAI kaliti</label>
+                <input id="openai_key" name="openai_key" type="password" autocomplete="off" class="input" placeholder="{{ $ai['openai_mask'] ? 'Saqlangan: '.$ai['openai_mask'].' — almashtirish uchun yangisini kiriting' : 'sk-...' }}">
+                @error('openai_key')<p class="error-text">{{ $message }}</p>@enderror
+                @if ($ai['openai_env'])<p class="mt-1 text-xs text-ink-500">Hozir kalit .env dan olinmoqda.</p>@endif
+            </div>
+            <x-input name="openai_model" label="OpenAI modeli" :value="old('openai_model', $ai['openai_model'])" />
+            <div>
+                <label class="label" for="anthropic_key">Claude (Anthropic) kaliti</label>
+                <input id="anthropic_key" name="anthropic_key" type="password" autocomplete="off" class="input" placeholder="{{ $ai['anthropic_mask'] ? 'Saqlangan: '.$ai['anthropic_mask'].' — almashtirish uchun yangisini kiriting' : 'sk-ant-...' }}">
+                @error('anthropic_key')<p class="error-text">{{ $message }}</p>@enderror
+                @if ($ai['anthropic_env'])<p class="mt-1 text-xs text-ink-500">Hozir kalit .env dan olinmoqda.</p>@endif
+            </div>
+            <x-input name="anthropic_model" label="Claude modeli" :value="old('anthropic_model', $ai['anthropic_model'])" />
+        </div>
+        <p class="text-xs text-ink-500">Faol provayderlar: <b>{{ $ai['active'] ? implode(' → ', array_map(fn ($p) => \App\Services\OpenAiService::PROVIDERS[$p], $ai['active'])) : 'hech biri (kalit kiritilmagan)' }}</b></p>
+        <div class="flex flex-wrap gap-2"><button class="btn-primary btn-sm">Saqlash</button></div>
+    </form>
+    <div class="mb-6 flex max-w-3xl flex-wrap gap-2">
+        <form method="POST" action="{{ route('platform.integrations.ai.test') }}">@csrf<button class="btn-secondary btn-sm">Sinab ko'rish</button></form>
+        @foreach (['openai' => 'OpenAI', 'anthropic' => 'Claude'] as $pk => $pl)
+            @if ($ai[$pk.'_mask'] && ! $ai[$pk.'_env'])
+                <form method="POST" action="{{ route('platform.integrations.ai.clear') }}" onsubmit="return confirm('{{ $pl }} kaliti o\'chiriladi. Davom etilsinmi?')">@csrf @method('DELETE')<input type="hidden" name="provider" value="{{ $pk }}"><button class="btn-ghost btn-sm text-red-600">{{ $pl }} kalitini o'chirish</button></form>
+            @endif
+        @endforeach
+    </div>
+
+    {{-- Eskiz (platforma hisobi) --}}
+    <form method="POST" action="{{ route('platform.integrations.eskiz') }}" class="card card-body mb-4 max-w-3xl space-y-3">@csrf @method('PUT')
+        <h2 class="font-bold text-ink-900 dark:text-white">Eskiz.uz (platforma hisobi)</h2>
+        <p class="text-xs text-ink-500">SMS Gateway ishlamay qolganda tarifdagi SMS'lar shu hisob orqali ketadi. Faqat <a class="font-semibold text-brand-600" href="{{ route('platform.sms.templates') }}">«SMS shablonlar»da tasdiqlangan</a> matnlar yuboriladi. Markazlar o'z Eskiz akkauntini «Markaz → SMS» bo'limida ulaydi.</p>
+        <div class="grid gap-3 sm:grid-cols-2">
+            <x-input name="email" type="email" label="Eskiz email" :value="old('email', $eskiz['email'])" />
+            <div>
+                <label class="label" for="eskiz_password">Eskiz paroli</label>
+                <input id="eskiz_password" name="password" type="password" autocomplete="new-password" class="input" placeholder="{{ $eskiz['mask'] ? 'Saqlangan: '.$eskiz['mask'].' — almashtirish uchun yangisini kiriting' : '' }}">
+                @error('password')<p class="error-text">{{ $message }}</p>@enderror
+                @if ($eskiz['env'])<p class="mt-1 text-xs text-ink-500">Hozir parol .env dan olinmoqda.</p>@endif
+            </div>
+            <x-input name="from" label="Yuboruvchi nomi" :value="old('from', $eskiz['from'] ?: '4546')" />
+        </div>
+        <div class="flex flex-wrap gap-2"><button class="btn-primary btn-sm">Saqlash va tekshirish</button></div>
+    </form>
 
     {{-- Telegram --}}
     <form method="POST" action="{{ route('platform.integrations.telegram') }}" class="card card-body mb-4 max-w-3xl space-y-3">@csrf @method('PUT')
@@ -47,19 +103,26 @@
         <p class="text-xs text-ink-500">Telegram webhook uchun HTTPS va ochiq domen kerak. Mahalliy tarmoqda (domen yo'q) bot xabar qabul qila olmaydi, lekin yuborish ishlaydi.</p>
     </div>
 
-    {{-- Modem --}}
-    <form method="POST" action="{{ route('platform.integrations.modem') }}" class="card card-body max-w-3xl space-y-3">@csrf @method('PUT')
-        <h2 class="font-bold text-ink-900 dark:text-white">USB modem parametrlari</h2>
-        <x-input name="ports" label="Qidiriladigan portlar (vergul bilan; masalan /dev/ttyUSB*,/dev/ttyACM*)" :value="old('ports', $modem['ports'])" required />
-        <p class="-mt-2 text-xs text-ink-500">Hozir topilgan portlar: {{ $detected ? implode(', ', $detected) : 'yo\'q (modem ulanmagan yoki server Linux emas)' }}</p>
+    {{-- SMS Gateway --}}
+    <form method="POST" action="{{ route('platform.integrations.gateway') }}" class="card card-body mb-4 max-w-3xl space-y-3">@csrf @method('PUT')
+        <h2 class="font-bold text-ink-900 dark:text-white">SMS Gateway (asosiy SMS kanali)</h2>
+        <p class="text-xs text-ink-500">Tarif ichidagi SMS'lar avval shu gateway orqali ketadi. Gateway javob bermasa, rad etsa yoki xabar yuborilmay qolsa SMS avtomatik Eskiz'ga o'tadi (faqat tasdiqlangan matn).</p>
+        <x-input name="url" label="Gateway manzili" :value="old('url', $gateway['url'])" required />
         <div class="grid gap-3 sm:grid-cols-2">
-            <div><label class="label" for="baud">Port tezligi (baud)</label>
-                <select id="baud" name="baud" class="input">@foreach ($bauds as $b)<option value="{{ $b }}" @selected((int) old('baud', $modem['baud']) === $b)>{{ $b }}</option>@endforeach</select>@error('baud')<p class="error-text">{{ $message }}</p>@enderror</div>
-            <x-input name="daily_limit" type="number" min="0" label="Bitta SIM uchun kunlik chegara (0 = cheksiz)" :value="old('daily_limit', $modem['daily_limit'])" required />
-            <x-input name="pause_min" type="number" min="0" label="Xabarlar orasidagi eng qisqa pauza (soniya)" :value="old('pause_min', $modem['pause_min'])" required />
-            <x-input name="pause_max" type="number" min="0" label="Eng uzun pauza (soniya)" :value="old('pause_max', $modem['pause_max'])" required />
+            <div>
+                <label class="label" for="gw_key">API kaliti (sk_sms_...)</label>
+                <input id="gw_key" name="key" type="password" autocomplete="off" class="input" placeholder="{{ $gateway['key_mask'] ? 'Saqlangan: '.$gateway['key_mask'].' — almashtirish uchun yangisini kiriting' : 'sk_sms_...' }}">
+                @error('key')<p class="error-text">{{ $message }}</p>@enderror
+                @if ($gateway['key_env'])<p class="mt-1 text-xs text-ink-500">Hozir .env dan olinmoqda.</p>@endif
+            </div>
+            <div>
+                <label class="label" for="gw_secret">Webhook siri</label>
+                <input id="gw_secret" name="secret" type="password" autocomplete="off" class="input" placeholder="{{ $gateway['secret_mask'] ? 'Saqlangan: '.$gateway['secret_mask'].' — almashtirish uchun yangisini kiriting' : 'Gateway loyiha sozlamalaridagi sir' }}">
+                @if ($gateway['secret_env'])<p class="mt-1 text-xs text-ink-500">Hozir .env dan olinmoqda.</p>@endif
+            </div>
         </div>
-        <p class="text-xs text-ink-500">Operator bloklamasligi uchun xabarlar orasida tasodifiy pauza qilinadi va SIM kuniga chegaradan ko'p yubormaydi (chegaraga yetsa, SMS Eskiz orqali ketadi).</p>
-        <div><button class="btn-primary btn-sm">Saqlash</button></div>
+        <p class="text-xs text-ink-500">Gateway loyiha sozlamalarida <b>Webhook URL</b> sifatida kiriting: <span class="select-all font-mono">{{ $gateway['webhook'] }}</span> va shu yerdagi bilan bir xil sirni belgilang.</p>
+        <div class="flex flex-wrap gap-2"><button class="btn-primary btn-sm">Saqlash</button></div>
     </form>
+    <form method="POST" action="{{ route('platform.integrations.gateway.test') }}" class="mb-6 max-w-3xl">@csrf<button class="btn-secondary btn-sm">Gateway'ni tekshirish</button></form>
 @endsection

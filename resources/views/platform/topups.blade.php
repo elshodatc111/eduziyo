@@ -4,11 +4,12 @@
 @php $fmt = fn ($n) => number_format((int) $n, 0, '', ' '); @endphp
 
 @section('content')
+    @if ($focus)<script>document.addEventListener('DOMContentLoaded',()=>document.getElementById('topup-{{ $focus }}')?.scrollIntoView({block:'center'}));</script>@endif
     <x-page-header title="Balans to'ldirish so'rovlari" subtitle="Chekni tekshirib tasdiqlang yoki rad eting" />
 
     <div class="mb-6 space-y-3">
         @forelse ($pending as $r)
-            <div class="card card-body">
+            <div id="topup-{{ $r->id }}" class="card card-body {{ $focus === $r->id ? 'ring-2 ring-brand-500' : '' }}">
                 <div class="flex flex-wrap items-start justify-between gap-3">
                     <div>
                         <div class="font-bold text-ink-900 dark:text-white">{{ $centers[$r->center_id] ?? '—' }}</div>

@@ -72,7 +72,7 @@ class LandingController extends Controller
                 'telegram_token' => \Illuminate\Support\Str::lower(\Illuminate\Support\Str::random(24)),
             ]));
             $back = $back->with('tg_verify_link', app(\App\Services\Telegram\TelegramClient::class)->deepLink('app_'.$application->telegram_token));
-            app(\App\Services\Telegram\TelegramNotifier::class)->toSadmins("🆕 Yangi ariza (Telegram tasdig'isiz)\n".e($data['center_name']).' — '.e($data['name']).', '.e($data['phone']));
+            app(\App\Services\Telegram\SadminAlerts::class)->application($application, false);
             Log::info('Yangi sotuv arizasi', ['center' => $data['center_name']]);
         }
 

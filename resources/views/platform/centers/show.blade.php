@@ -36,13 +36,6 @@
             <x-input name="note" label="Izoh" />
             <button class="btn-primary btn-sm w-fit">Berish</button>
         </form>
-        <form method="POST" action="{{ route('platform.sms.invoices.store', $center) }}" class="card card-body space-y-3">@csrf
-            <h2 class="font-bold text-ink-900 dark:text-white">SMS faktura yuborish</h2>
-            <x-input name="sms_count" type="number" min="1" label="SMS soni" required />
-            <x-input name="amount" money label="Summa (so'm)" required />
-            <x-input name="note" label="Izoh (ixtiyoriy)" />
-            <button class="btn-primary btn-sm">Faktura yuborish</button>
-        </form>
         <form method="POST" action="{{ route('platform.centers.adjust', $center) }}" class="card card-body space-y-3" onsubmit="return confirm('Markaz balansi o\'zgartiriladi. Davom etasizmi?')">@csrf
             <h2 class="font-bold text-ink-900 dark:text-white">Balansni tuzatish</h2>
             <x-input name="amount" type="number" label="Summa (+ qo'shish, − ayirish)" required />

@@ -62,17 +62,6 @@ class BranchController extends Controller
     {
         $data = $request->validated();
 
-        // Parol maydoni bo'sh qoldirilsa, avvalgi parol saqlanadi
-        if (blank($data['eskiz_password'] ?? null)) {
-            unset($data['eskiz_password']);
-        }
-        // Eskiz email o'chirilsa, filial umumiy akkauntga qaytadi
-        if (blank($data['eskiz_email'] ?? null)) {
-            $data['eskiz_email'] = null;
-            $data['eskiz_password'] = null;
-            $data['eskiz_from'] = null;
-        }
-
         $branch->update($data);
 
         AuditLog::record('branch.updated', $branch, "Filial ma'lumotlari yangilandi: {$branch->name}");

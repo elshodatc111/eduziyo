@@ -64,7 +64,7 @@ services:
     mem_limit: 192m
     cpus: 0.5
 
-  # Cron/navbat/modem to'xtasa sAdminlarga Telegram xabari (cron o'zi to'xtasa ham ishlaydi — alohida jarayon)
+  # Cron/navbat to'xtasa sAdminlarga Telegram xabari (cron o'zi to'xtasa ham ishlaydi — alohida jarayon)
   watchdog:
     <<: *app
     container_name: eduziyo_watchdog
@@ -74,23 +74,6 @@ services:
     mem_limit: 128m
     cpus: 0.25
 
-  # USB modem SMS ishchisi. Faqat modem ulangan bo'lsa:  docker compose ... --profile modem up -d
-  modem:
-    <<: *app
-    container_name: eduziyo_modem
-    profiles: ["modem"]
-    user: root
-    group_add: ["20"]            # Ubuntu'da `dialout` guruhi (ttyUSB* shu guruhda)
-    command: php artisan sms:modem-run --sleep=3
-    volumes:
-      - storage:/var/www/html/storage
-      - uploads:/var/www/html/public/uploads
-      - /dev:/dev
-    device_cgroup_rules:
-      - "c 188:* rmw"            # ttyUSB*
-      - "c 166:* rmw"            # ttyACM*
-    mem_limit: 192m
-    cpus: 0.5
 
 networks:
   internal: {}

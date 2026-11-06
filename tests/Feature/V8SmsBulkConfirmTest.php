@@ -21,6 +21,7 @@ class V8SmsBulkConfirmTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+        $this->approveSmsTemplates();
 
         config(['services.eskiz.email' => 'global@eskiz.uz', 'services.eskiz.password' => 'secret', 'services.eskiz.from' => '4546']);
         Http::fake([

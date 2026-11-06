@@ -18,12 +18,11 @@ class Branch extends Model
 
     protected $fillable = [
         'center_id', 'name', 'code', 'phone', 'address', 'charity_percent', 'discount_days_before', 'discount_days_after', 'sms_enabled', 'status', 'opened_at', 'closed_at', 'closed_reason',
-        'eskiz_email', 'eskiz_password', 'eskiz_from', 'sms_auto_debt', 'sms_auto_absent',
+        'sms_auto_debt', 'sms_auto_absent',
         'stir', 'director_name', 'director_title', 'contract_template',
         'brand_color', 'public_about', 'usluga_from', 'usluga_rates',
     ];
 
-    protected $hidden = ['eskiz_password'];
 
     protected $attributes = ['status' => 'active'];
 
@@ -33,7 +32,6 @@ class Branch extends Model
             'status' => BranchStatus::class,
             'opened_at' => 'datetime',
             'closed_at' => 'datetime',
-            'eskiz_password' => 'encrypted',
             'charity_percent' => 'float',
             'usluga_from' => 'date:Y-m-d',
             'usluga_rates' => 'array',
@@ -56,11 +54,6 @@ class Branch extends Model
     public function isActive(): bool
     {
         return $this->status === BranchStatus::Active;
-    }
-
-    public function hasOwnSmsAccount(): bool
-    {
-        return filled($this->eskiz_email) && filled($this->eskiz_password);
     }
 
     /** v9: ochiq murojaat sahifasida ishlatiladigan rang — filial o'zi tanlagan yoki standart. */

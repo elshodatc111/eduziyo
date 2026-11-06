@@ -135,7 +135,7 @@ class AiTest extends TestCase
         config(['services.openai.key' => null]);
         $this->actingAs($this->admin)->post('/ai', ['message' => 'Salom'])->assertSessionHasErrors('message');
         $this->assertSame(0, AiChat::count());                       // bo'sh suhbat qolmaydi
-        $this->get('/help?mode=analyst')->assertOk()->assertSee('OpenAI kaliti sozlanmagan');
+        $this->get('/help?mode=analyst')->assertOk()->assertSee('AI kaliti sozlanmagan');
 
         config(['services.openai.key' => 'sk-test']);
         Http::fake(['api.openai.com/*' => Http::response(['error' => ['message' => 'bad key']], 401)]);

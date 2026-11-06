@@ -1,5 +1,26 @@
 # O'zgarishlar tarixi
 
+## EduCRM E5 (2026-11-20) — USB modem olib tashlandi, SMS Gateway asosiy kanal
+
+- **USB modem to'liq olib tashlandi**: modem kodi, `sms:modem-run`/`sms:dispatch`, sAdmin «USB modemlar» sahifasi, `docs/SMS_MODEM.md`, `deploy/eduziyo-modem.service`, docker `modem` xizmati. Migratsiya `2026_11_20_000001_eduziyo_sms_gateway` `sms_modems` va `sms_outbox` jadvallarini o'chiradi (eski modem navbatidagi yuborilmagan xabarlar «failed» bo'ladi) va `sms_messages.gateway_id` qo'shadi.
+- **SMS Gateway (https://sms.elshod.date)**: tarif limiti ichidagi barcha SMS (ommaviy ham) avval gateway'ga ketadi (`external_id = eduziyo-{id}`). Gateway ulanmasa, 5xx/401/403/429/`no_modem`/kvota xatosi bersa — **darhol platforma Eskiz'i**. Noto'g'ri raqam/matn (validatsiya) xatosida Eskiz'ga o'tilmaydi.
+- **Holat**: gateway webhook'i (`POST /api/sms-gateway/webhook`, HMAC-SHA256 imzo, ±10 daq) + zaxira `sms:gateway-sync` (har 5 daq). `sent` → yuborildi; `failed`/`expired` → **Eskiz'ga avtomatik o'tish** (tarif hisobi ikki marta sanalmaydi; faqat sAdmin tasdiqlagan matn); `cancelled` → xato. 25 daqiqa javob bo'lmasa ham Eskiz'ga o'tadi.
+- **Integratsiyalar**: «SMS Gateway» kartasi (manzil, API kaliti, webhook siri — shifrlangan) va «Gateway'ni tekshirish». Watchdog gateway o'lsa sAdminlarga Telegram xabari yuboradi. SMS jurnalida «Gateway» kanali va holati.
+- Yangilash: `php artisan migrate && php artisan optimize:clear`; serverda `docker rm -f eduziyo_modem` (bo'lsa); gateway loyihasida Webhook URL — `https://educrm.elshod.date/api/sms-gateway/webhook` va shu sirni Integratsiyalar'ga kiriting. Gateway `sent` holati yetkazilganini bildirmaydi.
+
+## EduCRM E4 (2026-11-19) — AI: OpenAI + Claude, SMS/Eskiz qayta qurildi, menyu tartibi, Telegram havolalari
+
+- **AI provayderlar**: OpenAI va Claude (Anthropic) kalitlari/modellari endi `.env` da emas, sAdmin → **Integratsiyalar** sahifasida (shifrlangan, to'liq ko'rsatilmaydi; `.env` faqat zaxira qiymat). Ikkalasi bir xil ishlaydi; sAdmin **asosiy**ni tanlaydi. Asosiy provayder xato bersa (kalit noto'g'ri, mablag' tugagan, 429, 5xx, aloqa yo'q) so'rov **avtomatik ikkinchisiga** o'tadi va sAdminlarga Telegram xabari boradi (6 soatda bir marta). Ikkala provayder ham javob bermasa, markazning oylik AI hisobi qaytariladi. «Sinab ko'rish» tugmasi har provayderni alohida tekshiradi. AI limiti avvalgidek markaz tarifidan olinadi va markazning barcha filiallari uchun umumiy.
+- **SMS yo'nalishi**: tarif limiti ichida — USB modem (ishlamasa platforma Eskiz hisobi); limit **tugagach — markazning o'z Eskiz akkaunti** (ulangan bo'lsa). Eskiz ulanmagan bo'lsa SMS yuborilmaydi, **direktorga avtomatik SMS** (tizim matni, limitga sanalmaydi, oyiga bir marta) va Telegram xabari boradi: Eskiz'ni ulash tavsiya qilinadi.
+- **Faqat tasdiqlangan matnlar**: yangi **sAdmin → SMS shablonlar** sahifasi. Umumiy matnlarni tahrirlaysiz va tasdiqlaysiz; Eskiz (platforma ham, markaz ham) faqat tasdiqlangan shablonga mos xabarni yuboradi. Matn o'zgarsa tasdiq bekor bo'ladi. Filial standart matni ham shu yerdan olinadi.
+- **Markaz Eskiz'i**: har markazga **bitta** akkaunt (Markaz → SMS): kiritilgan login Eskiz'da tekshiriladi, parol shifrlanadi. Ulangach tasdiqlangan matnlar avtomatik Eskiz moderatsiyasiga yuboriladi; sAdmin yangi matn tasdiqlasa ham ulangan barcha markazlarga boradi. Holat soatiga bir marta yangilanadi (`sms:eskiz-sync`). **Eskiz shablon API'si haqiqiy hisobda hali sinalmagan** — xato bo'lsa sabab shablon qatorida ko'rinadi.
+- **sAdmin Eskiz hisobi**: Integratsiyalar sahifasida (modem ishlamaganda tarif SMS'lari shu orqali ketadi).
+- **Olib tashlandi**: SMS paket fakturalari (sotib olish, `extra_sms`) va filial darajasidagi Eskiz maydonlari; «Filiallar xodimlari» sahifasi (`staff.view_all_branches` ruxsati ham, `/staff-directory`).
+- **Menyu**: direktor va sAdmin yon menyulari guruhlarga ajratildi (boshqaruv / markaz / platforma / sotuv / aloqa / tizim).
+- **Telegram sAdminlarga**: har bir sotuv arizasi (telefon tasdiqlangan yoki yo'qligi bilan), murojaat va to'lov cheki — BARCHA ulangan sAdminga bir xil matn va to'g'ridan-to'g'ri havola bilan (`/sales/applications?id=…`, `/platform/toldirish?id=…` — kerakli yozuv ajratib ochiladi).
+- Migratsiya `2026_11_19_000001_eduziyo_eskiz_per_center` (yangi jadvallar: `sms_platform_templates`, `center_sms_accounts`, `center_sms_template_sync`; `sms_invoices` jadvali, `center_subscriptions.extra_sms` va `branches.eskiz_*` ustunlari olib tashlanadi) va `2026_11_18_000001_eduziyo_remove_staff_directory_permission`.
+- Yangilash: `php artisan migrate && php artisan optimize:clear`; sAdmin: Integratsiyalar'da AI kalitlari va Eskiz hisobini kiriting, «SMS shablonlar»da matnlarni tasdiqlang. Testlar: 694 (SQLite va MariaDB strict).
+
 ## EDUZIYO E3 (2026-11-17) — tezlik, izolyatsiya nazorati, Telegram ogohlantirish va oila boti, deploy
 
 - **N+1 va indekslar**: ish haqi sahifasi (`PayrollService::teacherAccrualsMany`) va platforma tahlili/markazlar (`SubscriptionService::limitsMany`) bitta guruhli so'rovlarga o'tkazildi. `QueryBudgetTest` asosiy ro'yxat sahifalarida so'rovlar soni qator soniga bog'liq emasligini tekshiradi. Migratsiya `2026_11_17_000001_eduziyo_center_indexes` markaz bo'yicha qo'shma indekslarni qo'shadi (additive).

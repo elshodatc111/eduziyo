@@ -36,12 +36,13 @@ Schedule::command('centers:lifecycle')->hourly()->withoutOverlapping();
 Schedule::command('backup:telegram')->dailyAt('03:20')->withoutOverlapping();
 Schedule::command('backup:telegram --files')->weeklyOn(0, '04:00')->withoutOverlapping();
 
-// EDUZIYO: modem navbatidagi (olinmagan/xato) SMS'larni Eskiz'ga o'tkazish va eski SMS matnlarini tozalash
-Schedule::command('sms:dispatch')->everyMinute()->withoutOverlapping();
+// EDUZIYO: SMS Gateway'da qolib ketgan xabarlar holatini tekshirish (xato bo'lsa Eskiz'ga o'tkaziladi) va eski SMS matnlarini tozalash
+Schedule::command('sms:gateway-sync')->everyFiveMinutes()->withoutOverlapping();
 Schedule::command('sms:prune-text')->dailyAt('04:00');
+Schedule::command('sms:eskiz-sync')->hourly()->withoutOverlapping();
 Schedule::command('support:tick')->hourly()->withoutOverlapping();
 
-// EDUZIYO E3: jarayonlar nazorati (cron/navbat/modem/zaxira/disk) — o'zgarish bo'lsa sAdminlarga Telegram xabari.
+// EDUZIYO E3: jarayonlar nazorati (cron/navbat/SMS gateway/zaxira/disk) — o'zgarish bo'lsa sAdminlarga Telegram xabari.
 // Cron o'zi to'xtasa, bu vazifa ham to'xtaydi; shuning uchun Docker'da `system:watch --loop` konteyneri alohida ishlaydi.
 Schedule::command('system:watch')->everyFiveMinutes()->withoutOverlapping();
 

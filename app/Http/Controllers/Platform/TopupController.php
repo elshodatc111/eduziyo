@@ -15,9 +15,10 @@ use Illuminate\Support\Facades\DB;
 /** sAdmin: markaz balansini to'ldirish so'rovlarini ko'rib chiqish va to'lov kartalari. */
 class TopupController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
         return view('platform.topups', [
+            'focus' => (int) $request->query('id'),
             'pending' => TopupRequest::withoutGlobalScopes()->where('status', 'pending')->with('card')->orderBy('id')->get(),
             'done' => TopupRequest::withoutGlobalScopes()->where('status', '!=', 'pending')->with('card')->latest('decided_at')->limit(30)->get(),
             'centers' => \App\Models\Center::pluck('name', 'id'),

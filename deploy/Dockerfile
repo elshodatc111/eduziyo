@@ -20,7 +20,7 @@ RUN composer install --no-dev --no-scripts --no-autoloader --prefer-dist --no-in
 COPY . .
 RUN composer dump-autoload --optimize --no-dev --no-interaction
 
-# ---- 3) Ilova (php-fpm; queue/scheduler/watchdog/modem ham shu tasvirdan) ----
+# ---- 3) Ilova (php-fpm; queue/scheduler/watchdog ham shu tasvirdan) ----
 FROM php:8.3-fpm AS app
 RUN apt-get update && apt-get install -y --no-install-recommends \
         libzip-dev libpng-dev libjpeg62-turbo-dev libfreetype6-dev libicu-dev libonig-dev default-mysql-client tzdata \
