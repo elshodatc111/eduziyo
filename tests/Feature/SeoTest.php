@@ -27,6 +27,9 @@ class SeoTest extends TestCase
         $this->assertStringContainsString('"@type":"SoftwareApplication"', $html);
         $this->assertStringContainsString('"@type":"FAQPage"', $html);
         $this->assertSame(1, substr_count($html, '<h1'));
+        $this->assertStringNotContainsString('&amp;#039;', $html, 'ikki marta escape qilinmasin');
+        $this->assertMatchesRegularExpression('/<title>[^<]*o&#039;quv markazlari[^<]*<\/title>/', $html);
+        $this->assertMatchesRegularExpression('/name="description" content="[^"]*o&#039;quv/', $html);
         $this->assertHeaderMissing($this->get('/'), 'X-Robots-Tag');
     }
 
