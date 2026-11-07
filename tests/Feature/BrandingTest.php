@@ -23,9 +23,9 @@ class BrandingTest extends TestCase
 
     public function test_default_brand_is_shown_everywhere(): void
     {
-        $this->get('/')->assertOk()->assertSee('EDUZIYO');
-        $this->get(route('login'))->assertOk()->assertSee('EDUZIYO');
-        $this->getJson(route('manifest'))->assertOk()->assertJsonPath('name', 'EDUZIYO');
+        $this->get('/')->assertOk()->assertSee('EduNova');
+        $this->get(route('login'))->assertOk()->assertSee('EduNova');
+        $this->getJson(route('manifest'))->assertOk()->assertJsonPath('name', 'EduNova');
     }
 
     public function test_sadmin_renames_platform_and_uploads_logo(): void
@@ -44,7 +44,7 @@ class BrandingTest extends TestCase
 
         auth()->logout();
         $this->get('/')->assertSee('YangiNom')->assertSee('uploads/brand/', false);
-        $this->get(route('login'))->assertSee('YangiNom')->assertDontSee('EDUZIYO');
+        $this->get(route('login'))->assertSee('YangiNom')->assertDontSee('EduNova');
         $this->getJson(route('manifest'))->assertJsonPath('name', 'YangiNom');
 
         $old = PlatformSetting::value('brand_logo');
@@ -68,7 +68,7 @@ class BrandingTest extends TestCase
         $owner = $this->user(Role::Owner, null, [], ['center_id' => $this->center()->id]);
         $this->actingAs($owner)->get(route('platform.brand'))->assertForbidden();
         $this->actingAs($owner)->put(route('platform.brand.update'), ['brand_name' => 'Hack'])->assertForbidden();
-        $this->assertSame('EDUZIYO', Brand::name());
+        $this->assertSame('EduNova', Brand::name());
     }
 
     public function test_owner_sets_center_logo_shown_in_sidebar_and_only_for_own_center(): void

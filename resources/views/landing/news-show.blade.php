@@ -1,7 +1,16 @@
 @extends('landing.layout')
 @section('title', $post->title.' · '.\App\Support\Brand::name())
 @section('og_image', (string) $post->imageUrl())
-@section('description', $post->excerpt ?: \Illuminate\Support\Str::limit(strip_tags($post->body), 150))
+@section('og_type', 'article')
+@section('seo_meta')
+    <meta property="article:published_time" content="{{ $post->published_at?->toAtomString() }}">
+    <meta property="article:modified_time" content="{{ ($post->updated_at ?? $post->published_at)?->toAtomString() }}">
+@endsection
+@push('jsonld')
+<script type="application/ld+json">{!! \App\Support\Seo::json(array_filter(['@context' => 'https://schema.org', '@type' => 'NewsArticle', 'headline' => \App\Support\Seo::limit($post->title, 110), 'description' => \App\Support\Seo::limit($post->excerpt ?: $post->body), 'image' => $post->imageUrl() ? [$post->imageUrl()] : null, 'datePublished' => $post->published_at?->toAtomString(), 'dateModified' => ($post->updated_at ?? $post->published_at)?->toAtomString(), 'mainEntityOfPage' => route('landing.news.show', $post->slug), 'inLanguage' => 'uz', 'author' => ['@type' => 'Organization', 'name' => \App\Support\Brand::name()], 'publisher' => ['@id' => url('/').'#organization']])) !!}</script>
+<script type="application/ld+json">{!! \App\Support\Seo::json(['@context' => 'https://schema.org', '@type' => 'BreadcrumbList', 'itemListElement' => [['@type' => 'ListItem', 'position' => 1, 'name' => \App\Support\Brand::name(), 'item' => url('/')], ['@type' => 'ListItem', 'position' => 2, 'name' => 'Yangiliklar', 'item' => route('landing.news')], ['@type' => 'ListItem', 'position' => 3, 'name' => $post->title, 'item' => route('landing.news.show', $post->slug)]]]) !!}</script>
+@endpush
+@section('description', \App\Support\Seo::limit($post->excerpt ?: $post->body))
 
 @section('content')
 <article class="lp-reveal mx-auto max-w-3xl px-4 py-16 sm:px-6">

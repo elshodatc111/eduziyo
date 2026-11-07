@@ -1,4 +1,6 @@
 @extends('landing.layout')
+@section('title', \App\Support\Brand::name()." — o'quv markazlari uchun CRM: o'quvchilar, to'lovlar, davomad, SMS")
+@section('description', \App\Support\Brand::name()." bilan o'quv markazingizni bitta tizimdan boshqaring: o'quvchilar, guruhlar, davomad, to'lovlar, kassa, ish haqi, SMS va hisobotlar. Ko'p filialli markazlar uchun.")
 
 @section('content')
 @php $fmt = fn ($n) => number_format((int) $n, 0, '', ' '); @endphp
@@ -359,6 +361,13 @@
         ["Qanday boshlayman?", "Pastdagi arizani to'ldiring. Biz bog'lanib, demo ko'rsatamiz va markazingizni sozlashga yordam beramiz."],
     ];
 @endphp
+@push('jsonld')
+<script type="application/ld+json">{!! \App\Support\Seo::json(\App\Support\Seo::organization($c)) !!}</script>
+<script type="application/ld+json">{!! \App\Support\Seo::json(['@context' => 'https://schema.org', '@type' => 'WebSite', 'name' => \App\Support\Brand::name(), 'url' => url('/'), 'inLanguage' => 'uz']) !!}</script>
+<script type="application/ld+json">{!! \App\Support\Seo::json(['@context' => 'https://schema.org', '@type' => 'SoftwareApplication', 'name' => \App\Support\Brand::name(), 'applicationCategory' => 'BusinessApplication', 'operatingSystem' => 'Web, Android, iOS', 'inLanguage' => 'uz', 'url' => url('/'), 'description' => "O'quv markazlari uchun CRM: o'quvchilar, guruhlar, davomad, to'lovlar, kassa, ish haqi, SMS va hisobotlar.", 'publisher' => ['@id' => url('/').'#organization']]) !!}</script>
+<script type="application/ld+json">{!! \App\Support\Seo::json(['@context' => 'https://schema.org', '@type' => 'FAQPage', 'mainEntity' => collect($faq)->map(fn ($f) => ['@type' => 'Question', 'name' => $f[0], 'acceptedAnswer' => ['@type' => 'Answer', 'text' => $f[1]]])->all()]) !!}</script>
+@endpush
+
 <section id="savollar" class="mx-auto max-w-3xl px-4 py-20 sm:px-6 lg:py-28" x-data="{ open: 0 }">
     <div class="text-center">
         <span class="lp-reveal badge-red">Savollar</span>

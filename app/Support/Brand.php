@@ -9,11 +9,11 @@ use Throwable;
 
 /**
  * Platforma brendi: nom, logotip, favicon (sAdmin sozlaydi) va markaz logotipi (direktor sozlaydi).
- * Sozlama bo'lmasa — standart «EDUZIYO» va harfli belgi. Bazaga ulanib bo'lmasa ham standartga qaytadi.
+ * Sozlama bo'lmasa — standart «EduNova» va harfli belgi. Bazaga ulanib bo'lmasa ham standartga qaytadi.
  */
 class Brand
 {
-    public const DEFAULT_NAME = 'EDUZIYO';
+    public const DEFAULT_NAME = 'EduNova';
 
     private static ?array $cache = null;
 

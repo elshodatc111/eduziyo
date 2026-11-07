@@ -14,7 +14,7 @@ class AuthTest extends TestCase
 
     public function test_guest_sees_sales_page_and_protected_pages_redirect_to_login(): void
     {
-        $this->get('/')->assertOk()->assertSee('EDUZIYO');
+        $this->get('/')->assertOk()->assertSee('EduNova');
         $this->get('/students')->assertRedirect(route('login'));
     }
 

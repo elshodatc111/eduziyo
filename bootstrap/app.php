@@ -27,6 +27,7 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware) {
         $middleware->append(StripMoneySpaces::class);
         $middleware->append(SecurityHeaders::class);
+        $middleware->append(\App\Http\Middleware\RobotsTag::class);
         $middleware->redirectGuestsTo(fn () => route('login'));
         $middleware->redirectUsersTo(fn () => route('dashboard'));
         $middleware->alias([

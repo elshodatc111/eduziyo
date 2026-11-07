@@ -1,4 +1,4 @@
-/* EDUZIYO service worker: faqat statik fayllar keshlanadi. Pul va davomat sahifalari HECH QACHON keshlanmaydi (oflayn yozish yo'q). */
+/* EduNova service worker: faqat statik fayllar keshlanadi. Pul va davomat sahifalari HECH QACHON keshlanmaydi (oflayn yozish yo'q). */
 const VERSION = 'eduziyo-v1';
 const STATIC = ['/offline.html', '/icons/icon-192.png', '/icons/icon-512.png', '/favicon.svg'];
 

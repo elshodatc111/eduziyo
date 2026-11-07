@@ -40,7 +40,7 @@ class V9BranchBrandingTest extends TestCase
         $this->branch('Farg\'ona');
         $this->branch('Xorazm');
 
-        $this->get('/apply')->assertOk()->assertSee('EDUZIYO');
+        $this->get('/apply')->assertOk()->assertSee('EduNova');
     }
 
     public function test_sadmin_can_update_branch_branding(): void

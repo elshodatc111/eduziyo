@@ -1,5 +1,10 @@
 @extends('landing.layout')
-@section('title', 'Yangiliklar · '.\App\Support\Brand::name())
+@section('title', 'Yangiliklar · '.\App\Support\Brand::name().($posts->currentPage() > 1 ? ' — '.$posts->currentPage().'-sahifa' : ''))
+@section('description', \App\Support\Brand::name()." yangiliklari: yangi imkoniyatlar, yangilanishlar va o'quv markazlari uchun foydali maqolalar.")
+@section('seo_meta')
+    @if ($posts->previousPageUrl())<link rel="prev" href="{{ $posts->previousPageUrl() }}">@endif
+    @if ($posts->nextPageUrl())<link rel="next" href="{{ $posts->nextPageUrl() }}">@endif
+@endsection
 
 @section('content')
 <section class="mx-auto max-w-4xl px-4 py-16 sm:px-6">

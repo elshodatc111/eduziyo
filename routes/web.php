@@ -50,6 +50,8 @@ Route::middleware('guest')->group(function () {
 
 // EDUZIYO sotuv sahifasi (ochiq, doim `/` da — kirgan foydalanuvchi ham ko'ra oladi). Boshqaruv paneli — `/dashboard`.
 Route::get('/', [LandingController::class, 'index'])->name('landing');
+Route::get('robots.txt', [\App\Http\Controllers\SeoController::class, 'robots'])->name('seo.robots');
+Route::get('sitemap.xml', [\App\Http\Controllers\SeoController::class, 'sitemap'])->name('seo.sitemap');
 Route::get('manifest.webmanifest', [\App\Http\Controllers\Platform\BrandController::class, 'manifest'])->name('manifest');
 Route::post('ariza', [LandingController::class, 'apply'])->middleware('throttle:5,60')->name('landing.apply');
 Route::get('yangiliklar', [LandingController::class, 'newsIndex'])->name('landing.news');

@@ -3,18 +3,12 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>@yield('title', \App\Support\Brand::name()." — o'quv markazlari uchun boshqaruv tizimi")</title>
-    <meta name="description" content="@yield('description', "O'quv markazingizni bitta tizimdan boshqaring: o'quvchilar, guruhlar, davomad, to'lovlar, kassa, ish haqi, SMS va hisobotlar. Ko'p filialli markazlar uchun.")">
-    <meta name="theme-color" content="#e11d34">
-    <meta property="og:title" content="@yield('title', \App\Support\Brand::name()." — o'quv markazlari uchun boshqaruv tizimi")">
-    <meta property="og:description" content="@yield('description', "O'quv markazlari uchun CRM: o'quvchilar, to'lovlar, davomad, SMS va hisobotlar.")">
-    <meta property="og:type" content="website">
-    @if (trim($__env->yieldContent('og_image')) !== '')<meta property="og:image" content="@yield('og_image')">@endif
-    <link rel="canonical" href="{{ url()->current() }}">
+    @include('partials.seo')
     @include('partials.pwa-head')
     <script>document.documentElement.classList.add('js')</script>
     <link rel="stylesheet" href="{{ asset('css/landing.css') }}?v={{ @filemtime(public_path('css/landing.css')) }}">
     @vite(['resources/css/app.css', 'resources/js/app.js'])
+    @stack('jsonld')
 </head>
 <body class="bg-white text-ink-800 antialiased selection:bg-brand-100 selection:text-brand-800">
 <div id="lp-progress"></div>
@@ -22,7 +16,7 @@
 <header id="lp-nav" class="sticky top-0 z-50 border-b border-ink-100/80 bg-white/75 backdrop-blur-xl" x-data="{ open: false }">
     <div class="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6">
         <a href="{{ route('landing') }}" class="flex items-center gap-2.5">
-            @if ($lg = \App\Support\Brand::logoUrl())<img src="{{ $lg }}" alt="" class="h-9 w-9 rounded-xl object-contain">@else<span class="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-brand-500 to-brand-700 text-lg font-black text-white shadow-lg shadow-brand-600/30">{{ \App\Support\Brand::initial() }}</span>@endif
+            @if ($lg = \App\Support\Brand::logoUrl())<img src="{{ $lg }}" alt="{{ \App\Support\Brand::name() }}" class="h-9 w-9 rounded-xl object-contain">@else<span class="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-brand-500 to-brand-700 text-lg font-black text-white shadow-lg shadow-brand-600/30">{{ \App\Support\Brand::initial() }}</span>@endif
             <span class="text-lg font-extrabold tracking-tight text-ink-900">{{ \App\Support\Brand::name() }}</span>
         </a>
         <nav class="hidden items-center gap-7 text-sm font-medium text-ink-600 lg:flex">
@@ -69,7 +63,7 @@
     <div class="relative mx-auto grid max-w-7xl gap-10 px-4 py-16 sm:px-6 md:grid-cols-4">
         <div class="lp-reveal md:col-span-2">
             <div class="flex items-center gap-2.5">
-                @if ($lg = \App\Support\Brand::logoUrl())<img src="{{ $lg }}" alt="" class="h-10 w-10 rounded-xl bg-white object-contain">@else<span class="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-brand-500 to-brand-700 text-xl font-black text-white">{{ \App\Support\Brand::initial() }}</span>@endif
+                @if ($lg = \App\Support\Brand::logoUrl())<img src="{{ $lg }}" alt="{{ \App\Support\Brand::name() }}" class="h-10 w-10 rounded-xl bg-white object-contain">@else<span class="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-brand-500 to-brand-700 text-xl font-black text-white">{{ \App\Support\Brand::initial() }}</span>@endif
                 <span class="text-xl font-extrabold text-white">{{ \App\Support\Brand::name() }}</span>
             </div>
             <p class="mt-4 max-w-sm text-sm leading-relaxed text-ink-400">O'quv markazlari uchun boshqaruv tizimi. O'zbekiston markazlari uchun, o'zbek tilida yaratilgan.</p>
