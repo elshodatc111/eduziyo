@@ -130,6 +130,22 @@ class EskizClient
         return $out;
     }
 
+    /**
+     * Akkauntdagi qoldiq (Eskiz «get-limit»). Aloqa/format xatosida null.
+     * DIQQAT: hujjat bo'yicha yozilgan, haqiqiy hisobda sinab ko'rilmagan.
+     */
+    public function balance(): ?int
+    {
+        try {
+            $r = Http::withToken($this->token())->timeout(15)->get($this->base().'/user/get-limit');
+        } catch (\Throwable) {
+            return null;
+        }
+        $v = $r->successful() ? ($r->json('data.balance') ?? $r->json('balance')) : null;
+
+        return is_numeric($v) ? (int) $v : null;
+    }
+
     private function token(): string
     {
         return Cache::remember($this->tokenKey(), now()->addDays(25), function () {

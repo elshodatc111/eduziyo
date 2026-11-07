@@ -7,7 +7,7 @@ class SmsTemplates
 {
     public const PLACEHOLDERS = [
         '{name}' => "Qabul qiluvchi ismi", '{branch}' => 'Filial nomi', '{amount}' => 'Summa', '{balance}' => 'Balans',
-        '{debt}' => 'Qarz summasi', '{login}' => 'Login', '{password}' => 'Parol', '{group}' => 'Guruh nomi',
+        '{debt}' => 'Qarz summasi', '{login}' => 'Login', '{group}' => 'Guruh nomi',
     ];
 
     /** Tizim xabarlari: filialga ko'rinmaydi, tarif limitiga sanalmaydi (sAdmin ularni ham tasdiqlaydi). */
@@ -27,8 +27,8 @@ class SmsTemplates
     {
         return [
             'student_welcome' => [
-                'label' => "Yangi o'quvchiga xush kelibsiz (login va parol bilan)", 'enabled' => true,
-                'body' => "Hurmatli {name}, {branch} o'quv markaziga xush kelibsiz! Mobil ilova uchun login: {login}, parol: {password}.",
+                'label' => "Yangi o'quvchiga xush kelibsiz", 'enabled' => true,
+                'body' => "Hurmatli {name}, {branch} o'quv markaziga xush kelibsiz! Ilovaga telefon raqamingiz bilan kiring. Kodni esa @eduziyocrmbot telegram botimiz orqali oling.",
             ],
             'payment_received' => [
                 'label' => "To'lov qabul qilindi", 'enabled' => true,
@@ -45,10 +45,6 @@ class SmsTemplates
             'staff_paid' => [
                 'label' => "Ish haqi to'landi (o'qituvchi va hodimga)", 'enabled' => false,
                 'body' => "Hurmatli {name}, sizga {amount} ish haqi to'landi.",
-            ],
-            'password_reset' => [
-                'label' => "O'quvchi paroli yangilandi", 'enabled' => false,
-                'body' => "Hurmatli {name}, parolingiz yangilandi. Login: {login}, yangi parol: {password}.",
             ],
             'birthday' => [
                 'label' => "Tug'ilgan kun tabrigi", 'enabled' => false,

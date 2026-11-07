@@ -6,7 +6,9 @@ use App\Models\SmsPlatformTemplate;
 use App\Support\SmsTemplates;
 
 /**
- * sAdmin tasdiqlagan umumiy SMS matnlari. Eskiz (platforma yoki markaz akkaunti) FAQAT shu matnlarga mos xabarni yuboradi.
+ * Umumiy SMS matnlari: FAQAT sAdmin tahrirlaydi, hamma filial va markaz uchun bir xil (filial/markaz o'zgartira olmaydi).
+ * Matnlar avtomatik tasdiqlangan hisoblanadi va Eskiz moderatsiyasiga o'zi yuboriladi (akkaunt kiritilganda/o'zgarganda ham).
+ * Eskiz (platforma yoki markaz akkaunti) FAQAT shu matnlarga mos xabarni yuboradi.
  * Filial standart matni ham shu yerdan olinadi (o'zgartirmagan filiallar tasdiqlangan matnni ishlatadi).
  */
 class SmsPlatformTemplates
@@ -17,6 +19,7 @@ class SmsPlatformTemplates
         foreach (SmsTemplates::all() + SmsTemplates::system() as $key => $d) {
             SmsPlatformTemplate::firstOrCreate(['key' => $key], [
                 'label' => $d['label'], 'body' => $d['body'], 'is_system' => in_array($key, SmsTemplates::SYSTEM_KEYS, true),
+                'is_approved' => true, 'approved_at' => now(),
             ]);
         }
     }
@@ -28,7 +31,7 @@ class SmsPlatformTemplates
         return SmsPlatformTemplate::where('key', $key)->first();
     }
 
-    /** Standart matn (sAdmin o'zgartirgan bo'lsa — o'sha). */
+    /** Umumiy matn (sAdmin o'zgartirgan bo'lsa — o'sha). */
     public static function body(string $key): ?string
     {
         return SmsPlatformTemplate::where('key', $key)->value('body') ?? (SmsTemplates::all() + SmsTemplates::system())[$key]['body'] ?? null;

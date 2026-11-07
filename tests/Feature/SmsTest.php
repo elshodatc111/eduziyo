@@ -61,19 +61,19 @@ class SmsTest extends TestCase
         $this->assertSame('sent', $welcome->status);
         $this->assertSame('998901234567', $welcome->phone);
         $this->assertStringContainsString('ALI VALIYEV', $welcome->message);
-        $this->assertStringContainsString('login: 998901234567', $welcome->message);
         $this->assertStringContainsString('Toshkent', $welcome->message);
-        // v8 A5: SMS tarixida ochiq parol saqlanmaydi - berkitilgan, yuborilgach "secret" tozalanadi
+        $this->assertStringContainsString('@eduziyocrmbot', $welcome->message);
+        // SMS orqali hech qanday parol yuborilmaydi
         $this->assertStringNotContainsString($password, $welcome->message);
-        $this->assertStringContainsString('••••••••', $welcome->message);
         $this->assertNull($welcome->secret);
 
         app(PaymentService::class)->receive($student, ['cash' => 250000], null, null, $this->admin);
         $payment = SmsMessage::where('template_key', 'payment_received')->firstOrFail();
         $this->assertStringContainsString("250 000 so'm", $payment->message);
 
-        // Lekin Eskizga yuborilgan HAQIQIY so'rovda parol bo'lishi kerak - aks holda o'quvchi kira olmaydi
-        Http::assertSent(fn (Request $r) => str_contains($r->url(), '/message/sms/send') && $r['mobile_phone'] === '998901234567' && $r['from'] === '4546' && $r->hasHeader('Authorization', 'Bearer TOKEN-1') && str_contains($r['message'], $password));
+        // Eskizga yuborilgan haqiqiy so'rovda ham parol yo'q
+        Http::assertSent(fn (Request $r) => str_contains($r->url(), '/message/sms/send') && $r['mobile_phone'] === '998901234567' && $r['from'] === '4546' && $r->hasHeader('Authorization', 'Bearer TOKEN-1') && ! str_contains($r['message'], $password));
+        Http::assertNotSent(fn (Request $r) => str_contains($r->url(), '/message/sms/send') && str_contains((string) $r['message'], $password));
     }
 
     public function test_disabled_templates_are_not_sent_and_can_be_enabled(): void
@@ -81,21 +81,41 @@ class SmsTest extends TestCase
         $this->enable();
         [$student] = app(StudentService::class)->create(['name' => 'Ali', 'phone' => '+998 90 123 4567'], $this->admin);
 
-        app(\App\Services\SmsNotifier::class)->notify('password_reset', $student, ['login' => $student->username, 'password' => 'abc12345']);
-        $this->assertSame(0, SmsMessage::where('template_key', 'password_reset')->count());   // standart holatda o'chiq
+        app(\App\Services\SmsNotifier::class)->notify('birthday', $student);
+        $this->assertSame(0, SmsMessage::where('template_key', 'birthday')->count());   // standart holatda o'chiq
 
+        // filial faqat yoqadi/o'chiradi; yuborilgan "body" e'tiborga olinmaydi (matn umumiy, faqat sAdmin tahrirlaydi)
         $this->put('/sms/settings', [
             'sms_enabled' => 1,
-            'templates' => ['password_reset' => ['enabled' => 1, 'body' => 'Yangi parol: {password}'], 'payment_received' => ['body' => 'Matn {amount}']],
+            'templates' => ['birthday' => ['enabled' => 1, 'body' => 'Mening matnim'], 'payment_received' => ['enabled' => 0]],
         ])->assertRedirect();
 
-        app(\App\Services\SmsNotifier::class)->notify('password_reset', $student, ['login' => $student->username, 'password' => 'abc12345']);
-        $this->assertSame(1, SmsMessage::where('template_key', 'password_reset')->count());
-        $this->assertStringStartsWith('Yangi parol: ', SmsMessage::where('template_key', 'password_reset')->value('message'));
+        app(\App\Services\SmsNotifier::class)->notify('birthday', $student);
+        $this->assertSame(1, SmsMessage::where('template_key', 'birthday')->count());
+        $msg = SmsMessage::where('template_key', 'birthday')->value('message');
+        $this->assertStringNotContainsString('Mening matnim', $msg);
+        $this->assertStringStartsWith('Hurmatli ', $msg);
 
-        // "payment_received" belgisi olib tashlandi -> yuborilmaydi
+        // "payment_received" o'chirildi -> yuborilmaydi
         app(PaymentService::class)->receive($student, ['cash' => 1000], null, null, $this->admin);
         $this->assertSame(0, SmsMessage::where('template_key', 'payment_received')->count());
+    }
+
+    public function test_branch_never_sees_template_text_and_password_is_never_sent(): void
+    {
+        $this->enable();
+
+        $page = $this->get('/sms')->assertOk();
+        $page->assertSee("Yangi o'quvchiga xush kelibsiz");   // xabar turi nomi ko'rinadi
+        $page->assertDontSee('@eduziyocrmbot');               // matnning o'zi ko'rinmaydi
+
+        $this->assertArrayNotHasKey('{password}', \App\Support\SmsTemplates::PLACEHOLDERS);
+        $this->assertArrayNotHasKey('password_reset', \App\Support\SmsTemplates::all());
+
+        // parol o'zgaruvchisi berilsa ham matnga tushmaydi
+        [$student] = app(StudentService::class)->create(['name' => 'Ali', 'phone' => '+998 90 123 4567'], $this->admin);
+        app(\App\Services\SmsNotifier::class)->notify('student_welcome', $student, ['login' => 'x', 'password' => 'abc12345']);
+        $this->assertSame(0, SmsMessage::where('message', 'like', '%abc12345%')->count());
     }
 
     public function test_invalid_phone_and_provider_errors_are_recorded(): void
@@ -116,7 +136,7 @@ class SmsTest extends TestCase
         Http::fake();
         $free = app(SmsService::class)->queue($this->branch, '901234567', 'Erkin matn', null, null, $this->admin);
         $this->assertSame('failed', $free->fresh()->status);
-        $this->assertStringContainsString('tasdiqlanmagan', $free->fresh()->provider_response);
+        $this->assertStringContainsString('faqat modem', $free->fresh()->provider_response);
         $custom = app(SmsService::class)->queue($this->branch, '901234567', "Boshqa matn bu", 'payment_received', null, $this->admin);
         $this->assertSame('failed', $custom->fresh()->status);
         Http::assertNothingSent();
@@ -217,5 +237,22 @@ class SmsTest extends TestCase
         app(SmsService::class)->queue($other, '902222222', 'Begona xabar', null, null, $this->admin);
 
         $this->get('/sms')->assertOk()->assertSee('Mening xabarim')->assertDontSee('Begona xabar')->assertSee('Ommaviy yuborish');
+    }
+
+    public function test_migration_removes_password_templates_and_old_branch_copies(): void
+    {
+        \App\Services\Sms\SmsPlatformTemplates::ensureSeeded();
+        \App\Models\SmsPlatformTemplate::forceCreate(['key' => 'password_reset', 'label' => 'Eski', 'body' => 'Yangi parol: {password}', 'is_approved' => false]);
+        \App\Models\SmsPlatformTemplate::where('key', 'student_welcome')->update(['body' => 'Login: {login}, parol: {password}', 'is_approved' => false]);
+        \App\Models\SmsTemplate::withoutGlobalScopes()->create(['branch_id' => $this->branch->id, 'key' => 'payment_received', 'body' => 'Eski filial matni', 'is_enabled' => true]);
+
+        (require base_path('database/migrations/2026_11_21_000001_eduziyo_sms_global_templates.php'))->up();
+
+        $this->assertSame(0, \App\Models\SmsPlatformTemplate::where('key', 'password_reset')->count());
+        $welcome = \App\Models\SmsPlatformTemplate::where('key', 'student_welcome')->firstOrFail();
+        $this->assertStringNotContainsString('{password}', $welcome->body);
+        $this->assertSame(0, \App\Models\SmsPlatformTemplate::where('is_approved', false)->count());
+        $this->assertSame(\App\Models\SmsPlatformTemplate::where('key', 'payment_received')->value('body'), \App\Models\SmsTemplate::withoutGlobalScopes()->where('key', 'payment_received')->value('body'));
+        $this->assertSame(0, \App\Models\SmsPlatformTemplate::where('body', 'like', '%{password}%')->count());
     }
 }

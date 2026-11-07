@@ -72,7 +72,7 @@
             <tbody>
             @forelse ($messages as $m)
                 <tr><td class="whitespace-nowrap">{{ $m->created_at->format('d.m.Y H:i') }}</td><td>{{ \App\Support\Format::prettyPhone($m->phone) }}</td><td class="max-w-md text-sm">{{ $m->message }}</td>
-                    <td>{{ ['gateway' => 'Gateway', 'own' => 'Sizning Eskiz'][$m->channel] ?? 'Eskiz' }}</td>
+                    <td>{{ ['gateway' => 'Modem', 'eskiz' => 'Platforma Eskiz (zaxira)', 'own' => 'Sizning Eskiz'][$m->channel] ?? '—' }}</td>
                     <td><span class="{{ ['sent' => 'badge-green', 'queued' => 'badge-amber', 'failed' => 'badge-red'][$m->status] ?? 'badge-gray' }}">{{ ['sent' => 'Yuborilgan', 'queued' => 'Navbatda', 'failed' => 'Xato'][$m->status] ?? $m->status }}</span></td></tr>
             @empty<tr><td colspan="5" class="py-10 text-center text-ink-500">Xabar yo'q.</td></tr>@endforelse
             </tbody></table></div>

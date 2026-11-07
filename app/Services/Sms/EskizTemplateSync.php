@@ -53,6 +53,7 @@ class EskizTemplateSync
 
         if ($login !== true) {
             $account->forceFill(['status' => 'error', 'last_error' => $login])->save();
+            app(\App\Services\SmsService::class)->notifyOwnEskizProblem($account->center_id, $login);
 
             return;
         }
@@ -133,6 +134,7 @@ class EskizTemplateSync
     /** Hammasini yangilash (jadval bo'yicha). */
     public function refreshAll(): void
     {
+        $this->syncPlatform();   // yuborilmagan/xato bo'lgan matnlarni platforma hisobiga qayta yuborish
         $this->refreshPlatform();
         foreach (CenterSmsAccount::withoutGlobalScopes()->get() as $acc) {
             $this->refreshCenter($acc);

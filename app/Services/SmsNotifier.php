@@ -28,6 +28,8 @@ class SmsNotifier
                 return;
             }
 
+            unset($vars['password']);   // parol SMS orqali hech qachon yuborilmaydi
+
             $template = $this->sms->template($branch, $key);
 
             if (! $template['enabled']) {
@@ -37,16 +39,7 @@ class SmsNotifier
             $allVars = ['name' => $recipient->name, 'branch' => $branch->name] + $vars;
             $text = $this->sms->render($template['body'], $allVars);
 
-            // v8 A5: parol o'z ichiga olgan xabarlarda SMS tarixida ochiq parol saqlanmaydi -
-            // haqiqiy matn faqat yuborish uchun $secret sifatida beriladi, tarixda berkitilgani ko'rinadi.
-            $secret = null;
-            if (array_key_exists('password', $vars) && $vars['password'] !== null) {
-                $masked = $this->sms->render($template['body'], ['password' => '••••••••'] + $allVars);
-                $secret = $text;
-                $text = $masked;
-            }
-
-            $this->sms->queue($branch, $phone, $text, $key, $recipient, auth()->user(), $secret);
+            $this->sms->queue($branch, $phone, $text, $key, $recipient, auth()->user());
         } catch (Throwable $e) {
             report($e);
         }

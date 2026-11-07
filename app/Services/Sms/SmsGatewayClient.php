@@ -71,6 +71,22 @@ class SmsGatewayClient
         return $r->successful() ? (array) $r->json() : null;
     }
 
+    /**
+     * Gateway sog'lig'i: ['status' => ok|degraded|down, 'modems_usable' => int, ...]. Aloqa bo'lmasa null.
+     *
+     * @return array<string,mixed>|null
+     */
+    public function health(): ?array
+    {
+        try {
+            $r = Http::acceptJson()->timeout(5)->get($this->url.'/api/v1/health');
+        } catch (\Throwable) {
+            return null;
+        }
+
+        return is_array($r->json()) && $r->json('status') !== null ? (array) $r->json() : null;
+    }
+
     /** Gateway tirikmi (kalit talab qilinmaydi). */
     public function healthy(): bool
     {

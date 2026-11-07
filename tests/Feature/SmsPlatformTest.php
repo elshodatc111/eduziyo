@@ -198,35 +198,117 @@ class SmsPlatformTest extends TestCase
         $this->actingAs($admin)->get(route('center.sms'))->assertForbidden();
     }
 
-    public function test_sadmin_approves_edits_and_revokes_templates(): void
+    public function test_sadmin_edits_global_templates_and_they_go_to_eskiz_automatically(): void
     {
         $sadmin = $this->user(Role::SAdmin);
-        SmsPlatformTemplate::query()->update(['is_approved' => false]);
         $this->ownAccount();
 
-        $this->actingAs($sadmin)->get(route('platform.sms.templates'))->assertOk()->assertSee('Tasdiqlanmagan');
-        $this->post(route('platform.sms.templates.approve', 'payment_received'))->assertRedirect();
+        // tasdiqlash bosqichi yo'q: barcha matnlar tayyor holatda
+        $this->assertSame(0, SmsPlatformTemplate::where('is_approved', false)->count());
+        $this->actingAs($sadmin)->get(route('platform.sms.templates'))->assertOk()->assertDontSee('Tasdiqlanmagan');
 
+        // matn o'zgarsa darhol platforma va ulangan markaz Eskiz'iga moderatsiyaga ketadi
+        $this->put(route('platform.sms.templates.update', 'payment_received'), ['body' => "Hurmatli {name}, {amount} qabul qilindi. Rahmat!"])->assertRedirect();
         $t = SmsPlatformTemplate::where('key', 'payment_received')->firstOrFail();
         $this->assertTrue($t->is_approved);
-        $this->assertSame('pending', $t->eskiz_status);                       // platforma hisobiga yuborildi
-        $this->assertSame('pending', CenterSmsTemplateSync::withoutGlobalScopes()->where('template_key', 'payment_received')->value('status'));   // ulangan markazga ham
+        $this->assertSame('pending', $t->eskiz_status);
+        $this->assertSame('pending', CenterSmsTemplateSync::withoutGlobalScopes()->where('template_key', 'payment_received')->value('status'));
+        Http::assertSent(fn (Request $r) => str_ends_with($r->url(), '/user/template') && $r['template'] === "Hurmatli {name}, {amount} qabul qilindi. Rahmat!");
 
-        // matn o'zgarsa tasdiq bekor bo'ladi
-        $this->put(route('platform.sms.templates.update', 'payment_received'), ['body' => "Hurmatli {name}, {amount} qabul qilindi. Rahmat!"])->assertRedirect();
-        $this->assertFalse($t->fresh()->is_approved);
-        $this->assertSame(0, CenterSmsTemplateSync::withoutGlobalScopes()->where('template_key', 'payment_received')->count());
+        // noma'lum o'zgaruvchi va parol rad etiladi
         $this->put(route('platform.sms.templates.update', 'payment_received'), ['body' => 'Noma\'lum {zzz} o\'zgaruvchi bor matn'])->assertSessionHasErrors('body');
+        $this->put(route('platform.sms.templates.update', 'student_welcome'), ['body' => "Hurmatli {name}, login: {login}, parol: {password}."])->assertSessionHasErrors('body');
 
-        // yangi matn filial standarti bo'ladi
+        // yangi matn hamma filial uchun bir xil
         $this->assertSame("Hurmatli {name}, {amount} qabul qilindi. Rahmat!", app(SmsService::class)->template($this->branch, 'payment_received')['body']);
 
-        $this->post(route('platform.sms.templates.approve', 'payment_received'));
-        $this->post(route('platform.sms.templates.revoke', 'payment_received'))->assertRedirect();
-        $this->assertFalse($t->fresh()->is_approved);
-
+        // faqat sAdmin
         $this->actingAs($this->owner)->get(route('platform.sms.templates'))->assertForbidden();
+        $this->actingAs($this->owner)->put(route('platform.sms.templates.update', 'payment_received'), ['body' => 'Boshqa matn bu yerda'])->assertForbidden();
         $this->actingAs($this->owner)->post(route('platform.sms.templates.approve', 'payment_received'))->assertForbidden();
+    }
+
+    public function test_saving_eskiz_accounts_submits_all_templates_for_moderation(): void
+    {
+        $sadmin = $this->user(Role::SAdmin);
+        SmsPlatformTemplate::query()->update(['eskiz_status' => 'none', 'eskiz_template_id' => null]);
+        $count = SmsPlatformTemplate::count();
+
+        // umumiy akkaunt kiritilganda hamma matn yuboriladi
+        $this->actingAs($sadmin)->put(route('platform.integrations.eskiz'), ['email' => 'yangi@eskiz.uz', 'password' => 'parol-123', 'from' => '4546'])->assertSessionHasNoErrors();
+        $this->assertSame($count, SmsPlatformTemplate::where('eskiz_status', 'pending')->count());
+
+        // akkaunt o'zgarganda qaytadan yuboriladi
+        Http::swap(new \Illuminate\Http\Client\Factory);
+        $this->fakeEskiz();
+        $this->put(route('platform.integrations.eskiz'), ['email' => 'boshqa@eskiz.uz', 'password' => 'parol-456', 'from' => '4546'])->assertSessionHasNoErrors();
+        $this->assertSame($count, SmsPlatformTemplate::where('eskiz_status', 'pending')->count());
+        $this->assertSame($count, Http::recorded(fn ($r) => str_ends_with($r->url(), '/user/template'))->count());
+
+        // markaz akkaunti o'zgarganda ham hamma matn yangi akkauntga yuboriladi
+        $this->actingAs($this->owner);
+        $this->put(route('center.sms.eskiz.connect'), ['email' => 'a@eskiz.uz', 'password' => 'x', 'sender' => '4546'])->assertSessionHasNoErrors();
+        $this->assertSame($count, CenterSmsTemplateSync::withoutGlobalScopes()->where('center_id', $this->center()->id)->where('status', 'pending')->count());
+        Http::swap(new \Illuminate\Http\Client\Factory);
+        $this->fakeEskiz();
+        $this->put(route('center.sms.eskiz.connect'), ['email' => 'b@eskiz.uz', 'password' => 'y', 'sender' => '4546'])->assertSessionHasNoErrors();
+        $this->assertSame($count, Http::recorded(fn ($r) => str_ends_with($r->url(), '/user/template'))->count());
+    }
+
+    public function test_center_director_is_alerted_when_own_eskiz_fails_once_a_day(): void
+    {
+        $this->subscribe($this->center(), 1);
+        $this->send();                                                  // limitni tugatamiz
+        $this->ownAccount();
+
+        Http::swap(new \Illuminate\Http\Client\Factory);
+        Http::fake(['*/auth/login' => Http::response(['message' => 'bad'], 401)]);
+        CenterAlerts::$sent = [];
+        $this->send('+998 91 123 4567');
+        $this->send('+998 92 123 4567');
+
+        $own = array_filter(CenterAlerts::$sent, fn ($a) => str_contains($a['text'], 'Sizning Eskiz akkauntingiz orqali'));
+        $this->assertCount(1, $own);                                    // kuniga bir marta
+    }
+
+    public function test_sadmin_gets_modem_and_eskiz_balance_alerts(): void
+    {
+        \App\Support\IntegrationSettings::set('gateway_url', 'https://gw.test');
+        \App\Support\IntegrationSettings::set('gateway_key', 'sk_sms_abcdefghijkl');
+        $texts = [];
+        $this->mock(\App\Services\Telegram\TelegramNotifier::class, function ($m) use (&$texts) {
+            $m->shouldReceive('toSadmins')->andReturnUsing(function ($t) use (&$texts) {
+                $texts[] = $t;
+
+                return 1;
+            });
+        });
+        $mon = app(\App\Services\Sms\SmsHealthMonitor::class);
+
+        Http::swap(new \Illuminate\Http\Client\Factory);
+        Http::fake(['gw.test/*' => Http::response(['status' => 'degraded', 'modems_usable' => 0], 200)]);
+        $mon->checkModem();
+        $this->assertCount(0, $texts);                                  // bir marta xato: hali jim
+        $mon->checkModem();
+        $this->assertCount(1, $texts);                                  // ketma-ket ikkinchi xato: ogohlantirish
+        $mon->checkModem();
+        $this->assertCount(1, $texts);                                  // takror yuborilmaydi
+
+        Http::swap(new \Illuminate\Http\Client\Factory);
+        Http::fake(['gw.test/*' => Http::response(['status' => 'ok', 'modems_usable' => 1], 200)]);
+        $mon->checkModem();
+        $this->assertCount(2, $texts);                                  // tiklandi
+        $this->assertStringContainsString('qayta ishlayapti', $texts[1]);
+
+        // umumiy Eskiz qoldig'i kam
+        Http::swap(new \Illuminate\Http\Client\Factory);
+        Http::fake([
+            '*/auth/login' => Http::response(['data' => ['token' => 'T']]),
+            '*/user/get-limit' => Http::response(['data' => ['balance' => 50]]),
+        ]);
+        $mon->checkEskizBalance();
+        $this->assertCount(3, $texts);
+        $this->assertStringContainsString('Eskiz', $texts[2]);
     }
 
     public function test_status_refresh_marks_templates_approved_by_eskiz(): void

@@ -36,11 +36,15 @@ class SmsTemplateController extends Controller
         ]);
     }
 
-    public function update(Request $request, string $key): RedirectResponse
+    public function update(Request $request, string $key, EskizTemplateSync $sync): RedirectResponse
     {
         $tpl = SmsPlatformTemplate::where('key', $key)->firstOrFail();
         $d = $request->validate(['body' => ['required', 'string', 'min:10', 'max:320']], [], ['body' => 'Matn']);
         $body = trim(preg_replace('/\s+/u', ' ', $d['body']));
+
+        if (str_contains($body, '{password}')) {
+            throw ValidationException::withMessages(['body' => "SMS matnida parol bo'lmasligi kerak (parol SMS orqali yuborilmaydi)."]);
+        }
 
         preg_match_all('/\{[a-z_]+\}/', $body, $m);
         $bad = array_values(array_diff(array_unique($m[0]), SmsPlatformTemplates::allowedPlaceholders()));
@@ -49,12 +53,13 @@ class SmsTemplateController extends Controller
         }
 
         if ($body !== $tpl->body) {
-            $wasApproved = $tpl->is_approved;
-            $tpl->update(['body' => $body, 'is_approved' => false, 'approved_at' => null, 'approved_by' => null]);
-            app(EskizTemplateSync::class)->onChanged($tpl);
+            // Matn hamma filial va markaz uchun bir xil; tasdiqlash bosqichi yo'q: saqlangan matn darhol Eskiz moderatsiyasiga ketadi.
+            $tpl->update(['body' => $body, 'is_approved' => true, 'approved_at' => now(), 'approved_by' => $request->user()->id]);
+            $sync->onChanged($tpl);
+            $sync->onApproved($tpl->fresh());
             AuditLog::record('sms.template_edited', null, "SMS shablon matni o'zgartirildi: {$key}");
 
-            return back()->with('success', 'Matn saqlandi.'.($wasApproved ? " Tasdiq bekor qilindi — qayta tasdiqlang." : ''));
+            return back()->with('success', "Matn saqlandi va Eskiz moderatsiyasiga yuborildi (platforma va ulangan markazlar).");
         }
 
         return back()->with('success', "O'zgarish yo'q.");
@@ -68,7 +73,7 @@ class SmsTemplateController extends Controller
 
         $sync->onApproved($tpl->fresh());
 
-        return back()->with('success', "Tasdiqlandi. Matn Eskiz moderatsiyasiga yuborildi (platforma va ulangan markazlar).");
+        return back()->with('success', "Matn Eskiz moderatsiyasiga qayta yuborildi (platforma va ulangan markazlar).");
     }
 
     public function revoke(string $key, EskizTemplateSync $sync): RedirectResponse

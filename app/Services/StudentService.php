@@ -45,7 +45,7 @@ class StudentService
 
         AuditLog::record('student.created', $student, 'Markazga tashrif: yangi o\'quvchi qo\'shildi');
         if ($notify) {
-            app(SmsNotifier::class)->notify('student_welcome', $student, ['login' => $student->username, 'password' => $password]);
+            app(SmsNotifier::class)->notify('student_welcome', $student, ['login' => $student->username]);
         }
 
         return [$student, $password];

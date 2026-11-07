@@ -73,6 +73,10 @@ class CenterSmsController extends Controller
             throw ValidationException::withMessages(['password' => $check]);
         }
 
+        if ($existing && strcasecmp($existing->email, $d['email']) !== 0) {   // boshqa akkaunt: matnlar qaytadan yuboriladi
+            CenterSmsTemplateSync::withoutGlobalScopes()->where('center_id', $center->id)->delete();
+        }
+
         CenterSmsAccount::withoutGlobalScopes()->updateOrCreate(['center_id' => $center->id], [
             'email' => $d['email'], 'password' => $password, 'sender' => $d['sender'],
             'status' => 'connected', 'last_error' => null, 'connected_at' => $existing?->connected_at ?? now(), 'checked_at' => now(),
@@ -81,7 +85,7 @@ class CenterSmsController extends Controller
 
         SyncEskizTemplatesJob::dispatch($center->id);
 
-        return back()->with('success', "Eskiz ulandi. Tasdiqlangan SMS matnlari Eskiz'ga moderatsiyaga yuborilmoqda.");
+        return back()->with('success', "Eskiz ulandi. Barcha SMS matnlari Eskiz'ga moderatsiyaga yuborilmoqda.");
     }
 
     public function disconnect(Request $request): RedirectResponse

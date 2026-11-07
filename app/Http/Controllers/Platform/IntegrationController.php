@@ -205,7 +205,15 @@ class IntegrationController extends Controller
         }
         AuditLog::record('integration.eskiz_saved', null, 'Platforma Eskiz hisobi saqlandi');
 
-        return back()->with('success', "Platforma Eskiz hisobi saqlandi va tekshirildi. «SMS shablonlar» sahifasida matnlarni tasdiqlang.");
+        $changed = $oldEmail !== S::get('eskiz_email') || (filled($d['password'] ?? null) && $oldPass !== S::get('eskiz_password'));
+        if (filled(S::get('eskiz_email')) && filled(S::get('eskiz_password'))) {
+            if ($changed) {   // boshqa akkaunt: eski yuborilganlik belgisi yaroqsiz, hamma matn qaytadan yuboriladi
+                \App\Models\SmsPlatformTemplate::query()->update(['eskiz_status' => 'none', 'eskiz_template_id' => null, 'eskiz_error' => null]);
+            }
+            \App\Jobs\SyncEskizTemplatesJob::dispatch();
+        }
+
+        return back()->with('success', "Platforma Eskiz hisobi saqlandi va tekshirildi. Barcha SMS matnlari Eskiz moderatsiyasiga yuborilmoqda.");
     }
 
     public function saveGateway(Request $request): RedirectResponse

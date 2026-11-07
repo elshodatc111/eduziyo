@@ -7,6 +7,7 @@ use App\Models\Group;
 use App\Models\SmsMessage;
 use App\Models\SmsTemplate;
 use App\Services\ConfirmationService;
+use App\Services\Sms\SmsPlatformTemplates;
 use App\Services\SmsService;
 use App\Support\BranchContext;
 use App\Support\Format;
@@ -32,7 +33,8 @@ class SmsController extends Controller
         $templates = [];
         if ($branch) {
             foreach (SmsTemplates::all() as $key => $def) {
-                $templates[$key] = ['label' => $def['label']] + $sms->template($branch, $key);
+                $t = $sms->template($branch, $key);
+                $templates[$key] = ['label' => $def['label'], 'enabled' => $t['enabled']];   // matn filialga ko'rsatilmaydi
             }
         }
 
@@ -59,9 +61,8 @@ class SmsController extends Controller
             'sms_auto_debt' => ['nullable', 'boolean'],
             'sms_auto_absent' => ['nullable', 'boolean'],
             'templates' => ['required', 'array'],
-            'templates.*.body' => ['required', 'string', 'max:500'],
             'templates.*.enabled' => ['nullable', 'boolean'],
-        ], [], ['templates.*.body' => 'Shablon matni']);
+        ]);
 
         Branch::findOrFail(BranchContext::id())->update([
             'sms_enabled' => $request->boolean('sms_enabled'),
@@ -71,9 +72,10 @@ class SmsController extends Controller
 
         foreach (array_keys(SmsTemplates::all()) as $key) {
             if (isset($data['templates'][$key])) {
+                // Filial faqat xabar turini yoqadi/o'chiradi. Matn umumiy va faqat sAdmin tahrirlaydi (`body` — jadval talabi uchun nusxa, ishlatilmaydi).
                 SmsTemplate::updateOrCreate(
                     ['branch_id' => BranchContext::id(), 'key' => $key],
-                    ['body' => $data['templates'][$key]['body'], 'is_enabled' => (bool) ($data['templates'][$key]['enabled'] ?? false)],
+                    ['body' => SmsPlatformTemplates::body($key) ?? SmsTemplates::all()[$key]['body'], 'is_enabled' => (bool) ($data['templates'][$key]['enabled'] ?? false)],
                 );
             }
         }

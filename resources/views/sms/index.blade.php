@@ -63,7 +63,7 @@
             </div>
             <div>
                 <label class="label" for="message">Xabar matni</label>
-                <textarea id="message" name="message" rows="4" maxlength="500" class="input" required>{{ \App\Support\SafeInput::string(old('message'), $templates['debt_reminder']['body'] ?? '', 500) }}</textarea>
+                <textarea id="message" name="message" rows="4" maxlength="500" class="input" required>{{ \App\Support\SafeInput::string(old('message'), '', 500) }}</textarea>
                 @error('message')<p class="error-text">{{ $message }}</p>@enderror
                 <p class="hint">O'zgaruvchilar: {{ implode('  ', array_keys(\App\Support\SmsTemplates::PLACEHOLDERS)) }} — har bir qabul qiluvchi uchun almashtiriladi. Bir xil raqamga bir marta yuboriladi.</p>
             </div>
@@ -81,8 +81,6 @@
             @foreach ($templates as $key => $t)
                 <div class="card card-body space-y-2">
                     <label class="flex items-center gap-3 text-sm font-semibold"><input type="checkbox" name="templates[{{ $key }}][enabled]" value="1" class="checkbox" @checked($t['enabled'])> {{ $t['label'] }}</label>
-                    <textarea name="templates[{{ $key }}][body]" rows="2" maxlength="500" class="input" required>{{ $t['body'] }}</textarea>
-                    @error("templates.$key.body")<p class="error-text">{{ $message }}</p>@enderror
                     @if ($key === 'debt_reminder')
                         <label class="flex items-center gap-3 border-t border-ink-100 pt-2 text-sm text-ink-600 dark:border-ink-800 dark:text-ink-300"><input type="checkbox" name="sms_auto_debt" value="1" class="checkbox" @checked($branch->sms_auto_debt)> Har kuni avtomatik yuborish (soat 09:15, kuniga bir marta)</label>
                         <p class="hint">Ishlashi uchun shablon ham yoqilgan bo'lishi kerak (yuqoridagi katakcha).</p>
@@ -92,7 +90,7 @@
                     @endif
                 </div>
             @endforeach
-            <p class="hint">O'zgaruvchilar: {{ implode('  ', array_keys(\App\Support\SmsTemplates::PLACEHOLDERS)) }}. Eskiz orqali faqat platforma (sAdmin) tasdiqlagan matnlar ketadi; matnni o'zgartirsangiz, u faqat SMS Gateway orqali yuboriladi (Gateway ishlamasa, yuborilmaydi).</p>
+            <p class="hint">Xabar matnlari hamma markaz va filial uchun bir xil va platforma (sAdmin) tomonidan belgilanadi. Bu yerda faqat qaysi xabar turlari yuborilishini yoqasiz yoki o'chirasiz. Ommaviy yuborishda qo'lda yozilgan matn faqat modem orqali ketadi.</p>
             <button class="btn-primary">Saqlash</button>
         </form>
     @endif

@@ -10,7 +10,7 @@
     "Http/Controllers/CabinetController.php": 2,
     "Http/Controllers/CashboxController.php": 1,
     "Http/Controllers/CenterPanelController.php": 2,
-    "Http/Controllers/CenterSmsController.php": 8,
+    "Http/Controllers/CenterSmsController.php": 9,
     "Http/Controllers/CenterSupportController.php": 3,
     "Http/Controllers/DashboardController.php": 2,
     "Http/Controllers/LeadController.php": 3,

@@ -40,6 +40,7 @@ Schedule::command('backup:telegram --files')->weeklyOn(0, '04:00')->withoutOverl
 Schedule::command('sms:gateway-sync')->everyFiveMinutes()->withoutOverlapping();
 Schedule::command('sms:prune-text')->dailyAt('04:00');
 Schedule::command('sms:eskiz-sync')->hourly()->withoutOverlapping();
+Schedule::command('sms:health')->everyFiveMinutes()->withoutOverlapping();
 Schedule::command('support:tick')->hourly()->withoutOverlapping();
 
 // EDUZIYO E3: jarayonlar nazorati (cron/navbat/SMS gateway/zaxira/disk) — o'zgarish bo'lsa sAdminlarga Telegram xabari.

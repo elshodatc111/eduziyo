@@ -37,8 +37,8 @@ class SmsService
         $row = SmsTemplate::withoutGlobalScopes()->where('branch_id', $branch->id)->where('key', $key)->first();
 
         return [
-            // filial o'zgartirmagan bo'lsa — sAdmin tasdiqlagan (yoki tahrir qilgan) umumiy matn
-            'body' => $row->body ?? SmsPlatformTemplates::body($key) ?? $default['body'] ?? '',
+            // matn hamma uchun bir xil: faqat sAdmin tahrirlaydi (filial qatoridagi eski `body` e'tiborga olinmaydi)
+            'body' => SmsPlatformTemplates::body($key) ?? $default['body'] ?? '',
             'enabled' => $row ? $row->is_enabled : ($default['enabled'] ?? false),
         ];
     }
@@ -287,6 +287,23 @@ class SmsService
     }
 
     /**
+     * Markazning O'Z Eskiz akkaunti ishlamasa (parol o'zgargan, balans tugagan va h.k.) direktorga xabar: kuniga bir marta.
+     */
+    public function notifyOwnEskizProblem(int $centerId, string $reason): void
+    {
+        try {
+            $center = \App\Models\Center::find($centerId);
+            if (! $center || ! Cache::add("sms-own-eskiz-alert:{$centerId}:".now()->format('Y-m-d'), 1, now()->endOfDay()->addHour())) {
+                return;
+            }
+
+            app(CenterAlerts::class)->send($center, "Sizning Eskiz akkauntingiz orqali SMS yuborilmadi: {$reason}. «Markaz → SMS» bo'limida akkaunt ma'lumotlarini yoki balansni tekshiring.");
+        } catch (\Throwable $e) {
+            report($e);   // ogohlantirish xatosi asosiy jarayonni buzmasin
+        }
+    }
+
+    /**
      * Eskiz orqali yuborish. $own — markazning o'z akkaunti (limit tugagach); yo'q bo'lsa platforma akkaunti (gateway ishlamaganda).
      * Faqat sAdmin tasdiqlagan matn yuboriladi. Limit bu yerda qayta hisoblanmaydi.
      */
@@ -294,6 +311,12 @@ class SmsService
     {
         $text = $sms->secret ?? $sms->message;
         $sms->update(['channel' => $own ? 'own' : 'eskiz']);
+
+        if (! $sms->template_key) {
+            $sms->update(['status' => SmsMessage::FAILED, 'provider_response' => "Qo'lda yozilgan (ommaviy) matn Eskiz orqali yuborilmaydi: faqat modem (SMS Gateway) orqali ketadi.", 'secret' => null]);
+
+            return;
+        }
 
         if (! SmsPlatformTemplates::allows($sms->template_key, $text)) {
             $sms->update(['status' => SmsMessage::FAILED, 'provider_response' => "Matn sAdmin tomonidan tasdiqlanmagan: Eskiz orqali yuborilmaydi (faqat tasdiqlangan shablonlar).", 'secret' => null]);
@@ -307,6 +330,7 @@ class SmsService
         } catch (RuntimeException $e) {
             if ($own) {
                 $own->forceFill(['status' => 'error', 'last_error' => mb_substr($e->getMessage(), 0, 250), 'checked_at' => now()])->save();
+                $this->notifyOwnEskizProblem($own->center_id, $e->getMessage());
             }
             $sms->update(['status' => SmsMessage::FAILED, 'provider_response' => $e->getMessage(), 'secret' => null]);
 
@@ -315,6 +339,9 @@ class SmsService
 
         $status = $response['status'] ?? null;
         $ok = in_array($status, ['waiting', 'success', 'delivered', 'ok'], true);
+        if (! $ok && $own) {
+            $this->notifyOwnEskizProblem($own->center_id, mb_substr((string) ($response['message'] ?? 'Eskiz xabarni qabul qilmadi'), 0, 200));
+        }
 
         $sms->update([
             'status' => $ok ? SmsMessage::SENT : SmsMessage::FAILED,
